@@ -22,7 +22,8 @@ An iron condor trading agent for tastytrade. Design docs: [plan.md](plan.md), [a
 
 - Limits live in `config/strategy.yaml` and are enforced in `risk.py`. Do not hard-code limits elsewhere.
 - Any change to `risk.py`, `orders.py` or `broker.py` needs tests, and the commit message must say what risk changed.
-- Default to `TT_ENV=sandbox`. Ask before running anything against production.
+- Default to `TT_ENV=sandbox` (or `paper` for offline runs with no credentials). Ask before running anything against production.
+- Run `pytest -q` before every commit; all tests are offline.
 - Keep the model out of the numbers: screening, sizing and limit checks are pure functions with tests.
 
 ## Conventions

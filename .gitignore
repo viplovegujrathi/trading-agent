@@ -9,3 +9,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .DS_Store
+data/history/
+*.egg-info/
+build/

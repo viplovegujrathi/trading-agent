@@ -23,23 +23,31 @@ For local development. Production runs on AWS EC2 — follow [deploy.md](deploy.
 git clone https://github.com/viplovegujrathi/trading-agent.git
 cd trading-agent
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt          # added in Phase 1
+pip install -r requirements.txt
+pytest -q                                 # all tests are offline
 cp .env.example .env && chmod 600 .env
 cp config/strategy.example.yaml config/strategy.yaml
 mkdir -p state journal
+python scripts/update_universe.py         # data/sp500.csv, dated
+python scripts/fetch_history.py           # data/history/*.csv (daily bars)
 ```
+
+To try the pipeline before any account exists, set `TT_ENV=paper` (see [README.md](README.md#quick-start-no-account-needed)).
 
 Fill `.env`:
 
 ```
-TT_ENV=sandbox                 # sandbox | production
+TT_ENV=sandbox                 # paper | sandbox | production
+TA_SECRETS=env                 # env | ssm (EC2: read /trading-agent/<env>/* from Parameter Store)
 TT_CLIENT_ID=...
 TT_CLIENT_SECRET=...
 TT_REFRESH_TOKEN=...
 TT_ACCOUNT=...                 # account number
-TA_APPROVAL_CHANNEL=push       # push | slack | email
+TA_APPROVAL_CHANNEL=cli        # cli | telegram
 TA_HALT=0
 ```
+
+With `TA_APPROVAL_CHANNEL=telegram`, also set `TA_TELEGRAM_BOT_TOKEN`, `TA_TELEGRAM_CHAT_ID` and `TA_TELEGRAM_USER_ID` (only that user's `YES <ext>` is accepted). Slack is not built yet; selecting it fails closed.
 
 ## 4. Claude Code
 
@@ -68,8 +76,11 @@ CRON_TZ=America/New_York
 ```bash
 python -m trading_agent.cli status            # token, account, balances
 python -m trading_agent.cli screen --dry      # candidate table, no orders
-python -m trading_agent.cli propose AAPL      # builds + dry-runs one condor
+python -m trading_agent.cli propose AAPL      # builds + dry-runs one condor, prints the ticket
+python -m trading_agent.cli submit <ext> --confirm "YES <ext>"   # only after you decide yes
 ```
+
+Daily history comes from `data/history/` because tastytrade serves candles only over DXLink streaming. Refresh it before each 9:45 screen.
 
 ## 7. Going live (Phase 5)
 

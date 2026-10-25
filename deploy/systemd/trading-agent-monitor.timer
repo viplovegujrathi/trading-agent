@@ -1,0 +1,11 @@
+[Unit]
+Description=Iron condor agent: exit checks at 12:30 and 15:15 ET
+
+[Timer]
+OnCalendar=Mon..Fri 12:30 America/New_York
+OnCalendar=Mon..Fri 15:15 America/New_York
+Persistent=false
+Unit=trading-agent@monitor.service
+
+[Install]
+WantedBy=timers.target

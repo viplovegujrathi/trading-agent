@@ -1,0 +1,10 @@
+[Unit]
+Description=Iron condor agent: daily summary after the close
+
+[Timer]
+OnCalendar=Mon..Fri 16:15 America/New_York
+Persistent=false
+Unit=trading-agent@summary.service
+
+[Install]
+WantedBy=timers.target

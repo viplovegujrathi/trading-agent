@@ -1,0 +1,10 @@
+[Unit]
+Description=Iron condor agent: 9:45 ET screen
+
+[Timer]
+OnCalendar=Mon..Fri 09:45 America/New_York
+Persistent=false
+Unit=trading-agent@screen.service
+
+[Install]
+WantedBy=timers.target
