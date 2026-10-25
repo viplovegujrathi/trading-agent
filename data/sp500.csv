@@ -1,0 +1,6 @@
+# list_date=2026-10-25  (sample only; replace with the full S&P 500 list: ticker,sector)
+ticker,sector
+AAPL,Information Technology
+INTC,Information Technology
+PFE,Health Care
+NKE,Consumer Discretionary
