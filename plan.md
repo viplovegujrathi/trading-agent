@@ -24,7 +24,29 @@ Build an iron condor agent that trades through tastytrade's official API, sandbo
 | Per-condor collateral cap | $1,000 | Max 4 open condors with a $1,000 buffer |
 | Order type | Limit, net credit, Day | Multi-leg market orders are a bad fill risk |
 | Approval | Autonomous in paper/sandbox; human yes before every production submit until graduation (30+ closed live condors, 0 breaches, 0 unknown orders) | Decided 2026-10-25: agent trades on its own, starting with a $5,000 paper account |
-| Runtime | AWS EC2, Python core on systemd timers; Claude Code interactive only | Same AWS setup as the Robinhood agents; a missed close never depends on Claude |
+| Runtime | AWS EC2, Python core on systemd timers; the Claude skill can also run the same CLI cycles and report | A missed close never depends on Claude. Paper first, no broker secrets needed |
+
+## Status and review (2026-10-25)
+
+| Phase | State |
+|---|---|
+| 0 Access | Not started: needs a tastytrade sandbox account and OAuth app |
+| 1 Data | Partly: Yahoo prices, options and S&P 500 list work (modeled). Missing: broker quotes, IV rank, reliable earnings/dividend dates |
+| 2 Screen, strikes, sizing | Done, with tests (the "20 historical dates hand check" is not done) |
+| 3 Order path | Built against a paper broker (risk, dry-run, route, safe submit). Missing: tastytrade client, approval bot, reprice/cancel flow |
+| 4 Monitor and journal | Built and tested; EC2 deploy kit ready; 5-day unattended run not yet done |
+| 5 Live | Not started; code-enforced graduation gate in place |
+
+Gaps found in review, none of which can lose money in paper mode but all matter before production:
+
+1. **Reprice/cancel is not wired.** `orders.reprice()` exists, nothing calls it; paper fills instantly, so the Working/Repriced/Cancelled path is untested.
+2. **Assignment detection is not wired.** `assignment.handle()` is tested but needs a broker positions feed.
+3. **Touch detection is weak on Yahoo data** (latest price only, not the intraday range). The rule is tested; the data feed is not good enough.
+4. **Ex-dividend exit** closes the whole condor (stricter than strategy.md's call-side-only close) until a call-spread-only closing order exists.
+5. **Exit reasons are not journaled on the close line** (the `exit_signal` event holds them), so P&L by reason needs a join.
+6. **Yahoo has no IV rank**, so every name is currently unflagged or missing on that rule.
+7. **Open-vs-close cap:** closes are exempt from the 6-orders/day cap by design (open question below).
+8. The strategy and universe are unchanged; the evidence is still index ETFs, not beaten-down single stocks.
 
 ## Phases
 
@@ -85,7 +107,8 @@ Build an iron condor agent that trades through tastytrade's official API, sandbo
 
 - [ ] 30–35 DTE (matches the put agent) or 45 DTE (matches the tastylive research)? Default 30–45 window until decided.
 - [ ] Approval bot: Slack (Socket Mode) or Telegram?
-- [ ] Reuse the DITM EC2 instance or run a separate `t4g.small`? See [deploy.md](deploy.md).
+- [ ] Reuse the DITM EC2 instance or run a separate `t4g.small`? See [deploy.md](deploy.md). Separate is recommended before live money.
+- [ ] Should closes count toward the daily order cap? (Currently exempt.)
 - [ ] Does tastytrade's market-metrics endpoint give reliable earnings and ex-dividend dates, or is a second source needed?
 - [ ] Does the account get the same spread-margin treatment in production as the dry-run shows in sandbox?
 

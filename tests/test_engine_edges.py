@@ -223,3 +223,14 @@ def test_positions_add_is_idempotent(tmp_path):
     positions.add_position(rec, tmp_path)
     positions.add_position(rec, tmp_path)
     assert len(journal.load_positions(tmp_path)) == 1
+
+
+def test_ex_dividend_signal_is_never_ignored(cfg, chain, tmp_path):
+    b = PaperBroker(root=tmp_path)
+    cycle([cand(chain=chain)], b, cfg, tmp_path)
+    p = journal.load_positions(tmp_path)[0]
+    out = monitor_cycle({p["ext"]: dict(cost_to_close=1.10, low=98, high=102,
+                                        ex_div_before_expiry=True, call_near_money=True)},
+                        b, cfg, "paper", TODAY, set(), None, tmp_path)
+    assert out[0][1] == "close_call_side" and journal.load_positions(tmp_path) == []
+    assert any(e["event"] == "exit_signal" for e in journal.read_events(DAY, tmp_path))

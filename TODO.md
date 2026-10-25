@@ -46,7 +46,16 @@ Status as of 2026-10-25: offline core, paper broker, Yahoo feed and EC2 deploy k
 - [ ] Production auto-trading stays off until the journal shows 30 closed live condors, 0 limit breaches and 0 unknown orders (enforced in `autonomy.py`). Relaxing this is your decision.
 - [ ] Keep a cron timer for `run-monitor` as a safety net even if Claude drives opens, so a Claude outage never leaves a position unmanaged.
 
-## 5. Possible later work
+## 5. Gaps from the plan/architecture review
+
+- [ ] Wire reprice-after-10-min and cancel (orders.reprice exists, unused); test with a paper broker that does not fill instantly.
+- [ ] Feed real broker positions into `assignment.handle()`.
+- [ ] Better touch detection: use intraday high/low since entry (broker or Yahoo 5-minute bars).
+- [ ] Call-spread-only closing order for the ex-dividend exit (currently closes the whole condor).
+- [ ] Put the exit reason on the `close_filled` journal line.
+- [ ] 20-date hand check of the screen (Plan Phase 2 exit).
+
+## 6. Possible later work
 
 - [ ] Dashboard: option B is built (`cli dashboard`, loopback only, started by `bootstrap.sh`). After deploy, test the SSM port-forward command in deploy.md. The claude.ai Condor Desk artifact is an old snapshot; delete or keep it as you prefer.
 - [ ] Other devices: set up Tailscale on the instance and your devices, set `DASH_HOST` and optionally `TA_DASH_PASSWORD` in `.env` (steps in deploy.md, "From your phone, laptop or other devices").

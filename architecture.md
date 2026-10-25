@@ -2,7 +2,9 @@
 
 ![Architecture diagram](docs/architecture.svg)
 
-The agent runs on an AWS EC2 instance as a set of deterministic Python modules started by systemd timers. The Python core owns the whole order path: screen, size, risk check, broker dry-run, risk re-check, your approval, submit. **Every number that gates an order is computed in code, not by the model.** Claude Code is used interactively (explaining candidates, reviewing the journal, changing code) and is not in the order path, so a scheduled close never depends on Claude being reachable. Deployment details: [deploy.md](deploy.md).
+The agent runs on an AWS EC2 instance as a set of deterministic Python modules started by systemd timers. The Python core owns the whole order path: screen, size, risk check, broker dry-run, risk re-check, your approval, submit. **Every number that gates an order is computed in code, not by the model.** Claude Code (the `iron-condor-tastytrade` skill) can run the cycles and report on them, but it only calls the CLI: it never computes a number or places an order, and the timers run the same cycles without it, so a scheduled close never depends on Claude being reachable.
+
+> **Status (2026-10-25):** built and tested offline: components 5–9, 11–13 and a paper broker. Paper mode uses Yahoo (modeled prices, Black-Scholes deltas) in place of components 3–4 and 9's tastytrade client. Not built: tastytrade auth/broker/market data, the approval bot transport, CloudWatch alarms. See [TODO.md](TODO.md). Deployment details: [deploy.md](deploy.md).
 
 ## Components
 
@@ -17,11 +19,13 @@ The agent runs on an AWS EC2 instance as a set of deterministic Python modules s
 | 7 | **Risk gate** | Enforces hard limits in [risk.md](risk.md); runs before and after dry-run | Yes |
 | 8 | **Order builder** | Builds the 4-leg JSON with net-credit limit and unique `external-identifier` | Yes |
 | 9 | **Broker client** | `POST orders/dry-run`, `POST orders`, order lookup, positions, balances | Yes |
-| 10 | **Approval gate** | Sends the ticket through a Slack (Socket Mode) or Telegram bot; accepts `YES <external-identifier>` only from your user ID; expires after 15 min | Yes |
+| 10 | **Approval gate + autonomy route** | `autonomy.py` decides per order: paper/sandbox submit on their own (`approval.mode: auto`); production waits for a human unless graduation is met (30 closed live condors, 0 breaches, 0 unknown). The human path sends the ticket through a Slack (Socket Mode) or Telegram bot, accepts `YES <external-identifier>` only from your user ID, expires after 15 min. Transport not built yet | Yes |
 | 11 | **Position monitor** | Evaluates exit rules on open condors and proposes closes through the same path | Yes |
 | 12 | **Journal & state** | Append-only JSONL journal; `positions.json`; daily summary | Yes |
 | 13 | **Kill switch** | A file (`state/HALT`) or env flag that blocks all new orders; closes are still allowed | Yes |
 | 14 | **Ops** | S3 backup of `journal/` and `state/`; CloudWatch heartbeat and error metrics; SNS alerts | Yes |
+| 15 | **Paper broker** | Simulated $5,000 account; fills at the limit price; same interface as the real broker | Yes |
+| 16 | **Dashboard** | Read-only page on the box, loopback or Tailscale address only; shows account, positions, P&L, halt, journal | Yes |
 
 ## Data flow — opening a condor
 
@@ -43,10 +47,13 @@ sequenceDiagram
     Core->>TT: POST orders/dry-run
     TT-->>Core: buying-power effect, fees, warnings
     Core->>Core: risk_check(dry-run result)
+    Core->>Core: approval route (auto in paper/sandbox)
+    opt production before graduation
     Core->>Bot: ticket: legs, credit, collateral, breakevens
     Bot->>You: message with YES / NO
     You-->>Bot: YES ext-id (within 15 min)
     Bot-->>Core: approval
+    end
     Core->>TT: POST orders (external-identifier)
     TT-->>Core: order id / status
     Core->>Core: journal + positions.json
@@ -67,7 +74,7 @@ stateDiagram-v2
     AwaitingApproval --> Submitted: you say yes
     Submitted --> Working
     Working --> Filled
-    Working --> Repriced: not filled in 10 min (one step: mid - 0.05)
+    Working --> Repriced: not filled in 10 min (one step: mid - 0.05) [not built]
     Repriced --> Filled
     Repriced --> Cancelled: still not filled
     Filled --> Open
@@ -119,6 +126,7 @@ The API does not dedupe retried submissions. So:
 ```
 state/
   positions.json      # open condors, legs, entry credit, exit flags
+  paper_account.json  # paper broker cash, reserved collateral, orders
   HALT                # present = kill switch on
 journal/
   2026-10-27.jsonl    # one line per event: screen, proposal, dry-run, approval, submit, fill, close
@@ -144,7 +152,15 @@ src/trading_agent/
   monitor.py       # exit rules on open condors
   journal.py       # JSONL + positions.json
   ops.py           # S3 backup, CloudWatch metrics
-  cli.py           # screen | propose | monitor | close | status | halt
+  cli.py           # status | halt | screen --dry | run-open | run-monitor | backup | dashboard
+  autonomy.py      # human vs auto approval route, production graduation test
+  paper.py         # simulated broker
+  engine.py        # open_cycle, monitor_cycle, close_position
+  pipeline.py      # risk -> dry-run -> risk -> route -> submit for one condor
+  positions.py     # positions.json, realized P&L, order count
+  assignment.py    # early-assignment detection (not yet wired to a broker feed)
+  prices_yahoo.py, options_yahoo.py, indicators.py, universe.py, calendar_us.py
+  dashboard.py, web/index.html
 tests/
 skills/iron-condor-tastytrade/SKILL.md
 ```
@@ -153,7 +169,7 @@ skills/iron-condor-tastytrade/SKILL.md
 
 - OAuth2 only. No passwords anywhere; secrets in SSM Parameter Store (KMS-encrypted), held in memory only.
 - The instance role can read only `/trading-agent/*` parameters, write only the refresh token, and write only to its own S3 bucket and CloudWatch namespace.
-- No inbound security-group rules; admin access through SSM Session Manager.
+- No inbound security-group rules; admin access through SSM Session Manager. The dashboard binds to loopback or a Tailscale address only and refuses anything else.
 - Runs as its own unprivileged user, separate from the Robinhood agents.
 - The agent cannot transfer money; the token scope is trading only.
 - Secrets never appear in logs, journal lines or chat messages.

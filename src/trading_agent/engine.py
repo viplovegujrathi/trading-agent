@@ -109,6 +109,10 @@ def monitor_cycle(marks: dict[str, dict], broker: Broker, cfg: dict, env: str, t
         sig = evaluate(oc, today, m["cost_to_close"], m.get("ex_div_before_expiry", False),
                        m.get("call_near_money", False), holidays, cfg)
         out.append((p["ticker"], sig.action, sig.reasons))
-        if sig.action == "close":
+        # close_call_side (ex-dividend risk) is handled as a full close until a call-spread-only
+        # closing order exists: stricter than strategy.md, but never ignores the signal.
+        if sig.action in ("close", "close_call_side"):
+            journal.append_event("exit_signal", p["ticker"], p["ext"], env=env, root=root,
+                                 action=sig.action, reasons=list(sig.reasons))
             close_position({**p, "touched": oc.touched}, m["cost_to_close"], broker, cfg, env, today, rec, root)
     return out
