@@ -17,7 +17,8 @@ def _strike_key(symbol: str) -> str:
 
 
 class PaperBroker:
-    def __init__(self, start_cash: float = 5000.0, root: Path = ROOT):
+    def __init__(self, start_cash: float = 5000.0, root: Path = ROOT, fill_on_submit: bool = True):
+        self.fill_on_submit = fill_on_submit
         self.path = root / "state" / "paper_account.json"
         if self.path.exists():
             self.acct = json.loads(self.path.read_text())
@@ -52,29 +53,58 @@ class PaperBroker:
         ext = order["external-identifier"]
         if ext in self.acct["orders"]:                      # idempotent
             return self.acct["orders"][ext]
+        is_close = order["price-effect"] == "Debit"
+        if self.fill_on_submit or is_close:
+            self.acct["orders"][ext] = {"order": order}
+            return self._fill(ext)
+        self.acct["orders"][ext] = {"status": "Working", "order": order, "external-identifier": ext}
+        self._save()
+        return self.acct["orders"][ext]
+
+    def fill(self, ext: str) -> dict:
+        """Test hook: the market trades through a working order's limit."""
+        return self._fill(ext)
+
+    def _fill(self, ext: str) -> dict:
+        order = self.acct["orders"][ext]["order"]
         qty = order["legs"][0]["quantity"]
-        key = "|".join(sorted(_strike_key(l["symbol"]) for l in order["legs"]))
+        key = "|".join(sorted(l["symbol"] for l in order["legs"]))
         if order["price-effect"] == "Debit":                # closing order
             held = self.acct["held"].pop(key, None)
             if held is None:
-                rec = {"status": "Rejected", "reason": "no such position", "external-identifier": ext}
+                rec = {"status": "Rejected", "reason": "no such position"}
             else:
                 self.acct["cash"] = round(self.acct["cash"] - float(order["price"]) * 100 * qty, 2)
                 self.acct["reserved"] = round(self.acct["reserved"] - held, 2)
-                rec = {"status": "Filled", "fill_price": order["price"], "external-identifier": ext}
+                rec = {"status": "Filled", "fill_price": order["price"]}
         else:
             bp = self.collateral(order)
             if self.available_cash < bp:
-                rec = {"status": "Rejected", "external-identifier": ext}
+                rec = {"status": "Rejected"}
             else:
                 self.acct["cash"] = round(self.acct["cash"] + float(order["price"]) * 100 * qty, 2)
                 self.acct["reserved"] = round(self.acct["reserved"] + bp, 2)
                 self.acct["held"][key] = bp
-                rec = {"status": "Filled", "fill_price": order["price"], "collateral": bp,
-                       "external-identifier": ext}
-        self.acct["orders"][ext] = rec
+                rec = {"status": "Filled", "fill_price": order["price"], "collateral": bp}
+        self.acct["orders"][ext] = {**rec, "order": order, "external-identifier": ext}
         self._save()
-        return rec
+        return self.acct["orders"][ext]
+
+    def cancel(self, ext: str) -> bool:
+        o = self.acct["orders"].get(ext)
+        if o and o["status"] == "Working":
+            o["status"] = "Cancelled"
+            self._save()
+            return True
+        return False
+
+    def replace_price(self, ext: str, price: float) -> bool:
+        o = self.acct["orders"].get(ext)
+        if o and o["status"] == "Working":
+            o["order"]["price"] = f"{price:.2f}"
+            self._save()
+            return True
+        return False
 
     def find_order(self, external_identifier: str) -> dict | None:
         return self.acct["orders"].get(external_identifier)

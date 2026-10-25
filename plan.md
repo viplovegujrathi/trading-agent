@@ -39,9 +39,9 @@ Build an iron condor agent that trades through tastytrade's official API, sandbo
 
 Gaps found in review, none of which can lose money in paper mode but all matter before production:
 
-1. **Reprice/cancel is not wired.** `orders.reprice()` exists, nothing calls it; paper fills instantly, so the Working/Repriced/Cancelled path is untested.
+1. ~~Reprice/cancel not wired~~ **Done 2026-10-25**: `engine.settle_working` reprices once after 10 minutes and cancels after another 10; working orders count against limits and cash; tested on a non-filling paper broker. The tastytrade client must implement `cancel` and `replace_price`.
 2. **Assignment detection is not wired.** `assignment.handle()` is tested but needs a broker positions feed.
-3. **Touch detection is weak on Yahoo data** (latest price only, not the intraday range). The rule is tested; the data feed is not good enough.
+3. ~~Touch detection weak~~ **Improved**: marks use the daily low/high since entry (Yahoo daily bars include intraday extremes). Still modeled data; use broker data later.
 4. **Ex-dividend exit** closes the whole condor (stricter than strategy.md's call-side-only close) until a call-spread-only closing order exists.
 5. **Exit reasons are not journaled on the close line** (the `exit_signal` event holds them), so P&L by reason needs a join.
 6. **Yahoo has no IV rank**, so every name is currently unflagged or missing on that rule.

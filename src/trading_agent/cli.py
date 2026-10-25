@@ -59,12 +59,12 @@ def main(argv: list[str] | None = None) -> int:
 
 def _run(cmd: str, tickers: list[str], force: bool) -> None:
     import os
-    from datetime import datetime, timezone
+    from datetime import date, datetime, timezone
     from . import journal, options_yahoo as oy, engine
     from .calendar_us import HOLIDAYS, session_minutes
     from .config import load_config
     from .paper import PaperBroker
-    from .prices_yahoo import fetch_snapshot
+    from .prices_yahoo import fetch_range, fetch_snapshot
     from .screen import screen_name
     from .structure import pick_expiry
     from .universe import load_universe
@@ -80,6 +80,8 @@ def _run(cmd: str, tickers: list[str], force: bool) -> None:
         return
     sm = sm or (60, 300)
     broker = PaperBroker(cfg["account"]["size_usd"])
+    for ext, what in engine.settle_working(broker, cfg, env, now):
+        print(f"working order {ext}: {what}")
     if cmd == "run-open":
         _, uni = load_universe()
         from concurrent.futures import ThreadPoolExecutor
@@ -110,7 +112,8 @@ def _run(cmd: str, tickers: list[str], force: bool) -> None:
             c = oy.cost_to_close(p, ch)
             if c is None or snap is None:
                 continue
-            marks[p["ext"]] = dict(cost_to_close=c, low=snap.price, high=snap.price,
+            rng = fetch_range(p["ticker"], date.fromisoformat(p.get("opened", today.isoformat()))) or (snap.price, snap.price)
+            marks[p["ext"]] = dict(cost_to_close=c, low=min(rng[0], snap.price), high=max(rng[1], snap.price),
                                    ex_div_before_expiry=snap.next_ex_dividend is not None
                                    and snap.next_ex_dividend.isoformat() <= p["expiry"],
                                    call_near_money=p["short_call"] is not None

@@ -74,7 +74,7 @@ stateDiagram-v2
     AwaitingApproval --> Submitted: you say yes
     Submitted --> Working
     Working --> Filled
-    Working --> Repriced: not filled in 10 min (one step: mid - 0.05) [not built]
+    Working --> Repriced: not filled in 10 min (one step: mid - 0.05)
     Repriced --> Filled
     Repriced --> Cancelled: still not filled
     Filled --> Open

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from . import journal, orders, positions, risk
@@ -25,8 +25,10 @@ class Candidate:
 
 def open_cycle(cands: list[Candidate], broker: Broker, cash: float, cfg: dict, env: str,
                today: date, minutes_since_open: int, minutes_to_close: int,
-               rec: LiveRecord | None = None, root: Path = journal.ROOT) -> list[tuple[str, Outcome]]:
+               rec: LiveRecord | None = None, root: Path = journal.ROOT,
+               now: datetime | None = None) -> list[tuple[str, Outcome]]:
     """Screen, structure, then open the best-credit-to-collateral condors until a limit stops it."""
+    now = now or datetime.now(timezone.utc)
     results: list[tuple[str, Outcome]] = []
     if risk.in_blackout(minutes_since_open, minutes_to_close, cfg):
         journal.append_event("skipped", None, None, env=env, root=root, reason="trading window")
@@ -53,13 +55,19 @@ def open_cycle(cands: list[Candidate], broker: Broker, cash: float, cfg: dict, e
                         env, rec, deltas, root)
         results.append((c.snap.ticker, o))
         if o.status == "submitted":
+            rec_ = positions.to_record(condor, c.snap.ticker, c.sector, c.expiry.isoformat(),
+                                       cfg["portfolio"]["contracts_per_condor"],
+                                       o.external_identifier, today.isoformat())
             filled = broker.find_order(o.external_identifier)
             if filled and filled.get("status") == "Filled":
-                positions.add_position(positions.to_record(
-                    condor, c.snap.ticker, c.sector, c.expiry.isoformat(),
-                    cfg["portfolio"]["contracts_per_condor"], o.external_identifier), root)
+                positions.add_position(rec_, root)
                 journal.append_event("fill", c.snap.ticker, o.external_identifier, env=env, root=root)
                 cash = cash + condor.max_profit - condor.collateral   # cash net of reserved
+            elif filled and filled.get("status") == "Working":
+                w = positions.load_working(root)
+                w[o.external_identifier] = {"record": rec_, "submitted_at": now.isoformat(),
+                                            "repriced": False}
+                positions.save_working(w, root)
         if o.status == "unknown":
             break
     return results
@@ -115,4 +123,48 @@ def monitor_cycle(marks: dict[str, dict], broker: Broker, cfg: dict, env: str, t
             journal.append_event("exit_signal", p["ticker"], p["ext"], env=env, root=root,
                                  action=sig.action, reasons=list(sig.reasons))
             close_position({**p, "touched": oc.touched}, m["cost_to_close"], broker, cfg, env, today, rec, root)
+    return out
+
+
+def settle_working(broker: Broker, cfg: dict, env: str, now: datetime,
+                   root: Path = journal.ROOT) -> list[tuple[str, str]]:
+    """strategy.md section 5: not filled in 10 min -> one step to mid - 0.05; still not filled
+    another 10 min later -> cancel. Never reprices below the minimum credit."""
+    wait = timedelta(minutes=cfg["pricing"]["reprice_after_minutes"])
+    work, out = positions.load_working(root), []
+    for ext, w in list(work.items()):
+        r = w["record"]
+        log = lambda ev, **kw: journal.append_event(ev, r["ticker"], ext, env=env, root=root, now=now, **kw)
+        o = broker.find_order(ext)
+        status = o.get("status") if o else None
+        if status == "Filled":
+            r = {**r, "credit": float(o["fill_price"]), "collateral": o.get("collateral", r["collateral"])}
+            positions.add_position(r, root)
+            log("fill", price=o["fill_price"])
+            del work[ext]
+            out.append((ext, "filled"))
+        elif status in ("Cancelled", "Rejected", None):
+            log("working_dropped", status=status)
+            del work[ext]
+            out.append((ext, "dropped"))
+        else:
+            age = now - datetime.fromisoformat(w["submitted_at"])
+            if not w["repriced"] and age >= wait:
+                new = orders.reprice_credit(r["credit"], cfg)
+                if new is None:
+                    broker.cancel(ext)
+                    log("order_cancelled", reason="reprice would breach minimum credit")
+                    del work[ext]
+                    out.append((ext, "cancelled"))
+                elif broker.replace_price(ext, new):
+                    w["repriced"], w["submitted_at"] = True, now.isoformat()
+                    work[ext] = {**w, "record": {**r, "credit": new}}
+                    log("order_repriced", price=new)
+                    out.append((ext, "repriced"))
+            elif w["repriced"] and age >= wait:
+                broker.cancel(ext)
+                log("order_cancelled", reason="not filled after reprice")
+                del work[ext]
+                out.append((ext, "cancelled"))
+    positions.save_working(work, root)
     return out

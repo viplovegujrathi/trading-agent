@@ -9,6 +9,8 @@ class Broker(Protocol):
     def dry_run(self, order: dict) -> dict: ...          # {"bp_effect": float, "warnings": [...]}
     def submit(self, order: dict) -> dict: ...
     def find_order(self, external_identifier: str) -> dict | None: ...
+    def cancel(self, external_identifier: str) -> bool: ...
+    def replace_price(self, external_identifier: str, price: float) -> bool: ...
 
 
 class SubmitUnknown(Exception):
@@ -35,6 +37,20 @@ class FakeBroker:
 
     def find_order(self, external_identifier: str) -> dict | None:
         return self.orders.get(external_identifier)
+
+    def cancel(self, external_identifier: str) -> bool:
+        o = self.orders.get(external_identifier)
+        if o and o["status"] == "Working":
+            o["status"] = "Cancelled"
+            return True
+        return False
+
+    def replace_price(self, external_identifier: str, price: float) -> bool:
+        o = self.orders.get(external_identifier)
+        if o and o["status"] == "Working":
+            o["price"] = f"{price:.2f}"
+            return True
+        return False
 
 
 def submit_safely(broker: Broker, order: dict, sleep=lambda s: None) -> dict:

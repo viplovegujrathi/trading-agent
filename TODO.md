@@ -48,9 +48,9 @@ Status as of 2026-10-25: offline core, paper broker, Yahoo feed and EC2 deploy k
 
 ## 5. Gaps from the plan/architecture review
 
-- [ ] Wire reprice-after-10-min and cancel (orders.reprice exists, unused); test with a paper broker that does not fill instantly.
+- [x] Reprice after 10 minutes, cancel after another 10, never below the minimum credit (done, tested with a non-filling paper broker). The tastytrade client still needs the same cancel/replace calls.
+- [x] Touch detection now uses daily high/low since entry on Yahoo (done); switch to broker data later.
 - [ ] Feed real broker positions into `assignment.handle()`.
-- [ ] Better touch detection: use intraday high/low since entry (broker or Yahoo 5-minute bars).
 - [ ] Call-spread-only closing order for the ex-dividend exit (currently closes the whole condor).
 - [ ] Put the exit reason on the `close_filled` journal line.
 - [ ] 20-date hand check of the screen (Plan Phase 2 exit).

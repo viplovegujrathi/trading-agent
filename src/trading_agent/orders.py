@@ -55,3 +55,9 @@ def build_close_order(pos: dict, debit: float, ext_id: str) -> dict:
         "legs": [{"instrument-type": "Equity Option", "symbol": _occ(t, e, k, s),
                   "quantity": pos["contracts"], "action": a} for s, k, a in legs],
     }
+
+
+def reprice_credit(credit: float, cfg: dict) -> float | None:
+    """One step below the working limit, never below the minimum credit. None = cancel."""
+    new = round(credit - cfg["pricing"]["reprice_step"], 2)
+    return new if new * 100 >= cfg["sizing"]["min_total_credit_usd"] else None
