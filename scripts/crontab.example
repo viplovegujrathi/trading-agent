@@ -1,0 +1,8 @@
+# Local paper-trading schedule (macOS/Linux). Install with: crontab scripts/crontab.example
+# Edit REPO first. Times are US Eastern; run-open/run-monitor skip when the market is closed.
+CRON_TZ=America/New_York
+TT_ENV=paper
+REPO=/Users/viplovegujrathi/trading-agent/repo
+45 9  * * 1-5  cd $REPO && .venv/bin/python -m trading_agent.cli run-open    >> journal/cron.log 2>&1
+30 12 * * 1-5  cd $REPO && .venv/bin/python -m trading_agent.cli run-monitor >> journal/cron.log 2>&1
+15 15 * * 1-5  cd $REPO && .venv/bin/python -m trading_agent.cli run-monitor >> journal/cron.log 2>&1

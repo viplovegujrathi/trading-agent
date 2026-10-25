@@ -64,16 +64,21 @@ def _run(cmd: str, tickers: list[str], force: bool) -> None:
     broker = PaperBroker(cfg["account"]["size_usd"])
     if cmd == "run-open":
         _, uni = load_universe()
-        cands = []
-        for t in tickers or uni:
-            snap = fetch_snapshot(t)
+        from concurrent.futures import ThreadPoolExecutor
+        names = tickers or list(uni)
+        with ThreadPoolExecutor(8) as ex:                  # Yahoo history is the slow part
+            snaps = list(ex.map(fetch_snapshot, names))
+        cands, no_data = [], 0
+        for t, snap in zip(names, snaps):
             if snap is None:
+                no_data += 1
                 continue
             exp = pick_expiry(oy.listed_expiries(t), today, cfg)
             if exp is None or not screen_name(snap, exp, cfg).passed:
                 continue
             cands.append(engine.Candidate(snap, uni.get(t, "Unknown"), exp,
                                           oy.fetch_chain(t, exp, snap.price, today)))
+        print(f"screened {len(names)} names, {no_data} without data")
         res = engine.open_cycle(cands, broker, broker.available_cash, cfg, env, today, sm[0], sm[1])
         print(f"candidates passing screen: {len(cands)}")
         for t, o in res:
