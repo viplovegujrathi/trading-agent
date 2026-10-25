@@ -1,0 +1,10 @@
+[Unit]
+Description=Iron condor agent: run-open (open)
+
+[Timer]
+OnCalendar=Mon..Fri 09:45 America/New_York
+Persistent=false
+Unit=trading-agent@run-open.service
+
+[Install]
+WantedBy=timers.target

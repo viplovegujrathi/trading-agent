@@ -14,6 +14,7 @@ def main(argv: list[str] | None = None) -> int:
     h.add_argument("--clear", metavar="NOTE")
     h.add_argument("--reason", default="manual")
     sub.add_parser("status")
+    sub.add_parser("backup")
     for name in ("run-open", "run-monitor"):
         r = sub.add_parser(name, help="paper-trading cycle (Yahoo data, simulated account)")
         r.add_argument("--force", action="store_true", help="ignore market hours (testing)")
@@ -34,8 +35,19 @@ def main(argv: list[str] | None = None) -> int:
         print(f"halted: {is_halted()}  open condors: {len(load_positions())}")
     elif a.cmd == "screen":
         _screen(a.tickers)
+    elif a.cmd == "backup":
+        from .ops import backup
+        ok = backup()
+        print("backup ok" if ok else "backup skipped or failed (see TA_BACKUP_BUCKET and aws CLI)")
+        return 0 if ok else 1
     elif a.cmd in ("run-open", "run-monitor"):
-        _run(a.cmd, getattr(a, "tickers", []), a.force)
+        from .ops import metric
+        try:
+            _run(a.cmd, getattr(a, "tickers", []), a.force)
+        except BaseException:
+            metric("RunFailed", a.cmd)
+            raise
+        metric("RunCompleted", a.cmd)
     return 0
 
 

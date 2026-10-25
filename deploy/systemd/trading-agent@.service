@@ -1,0 +1,12 @@
+[Unit]
+Description=Iron condor agent: %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=tagent
+WorkingDirectory=/opt/trading-agent/app
+EnvironmentFile=/opt/trading-agent/app/.env
+ExecStart=/opt/trading-agent/app/.venv/bin/python -m trading_agent.cli %i
+TimeoutStartSec=30min

@@ -1,5 +1,7 @@
 # Deploy on AWS
 
+> **Start here (paper mode, no broker secrets):** create the instance and an S3 bucket, attach a role with [deploy/iam-policy.json](deploy/iam-policy.json) plus `AmazonSSMManagedInstanceCore`, open a Session Manager shell, then run `sudo BUCKET=<bucket> bash deploy/bootstrap.sh`. It installs the app, runs the tests and enables the timers in [deploy/systemd/](deploy/systemd/) (`run-open` 09:45 ET, `run-monitor` 12:30 and 15:15 ET, backup every 15 min). Sections 2, 5 and the SSM parts of 1 apply only once you move to tastytrade/production.
+
 The agent runs on an EC2 instance, next to the Robinhood agents. The Python core runs from **systemd timers**; it screens, sizes, dry-runs, asks for your approval and submits on its own. Claude Code is for interactive work (explaining candidates, changing code, reviewing the journal) and is **not** in the order path, so a missed close never depends on Claude being reachable.
 
 ## Topology
@@ -86,7 +88,7 @@ Type=oneshot
 User=tagent
 WorkingDirectory=/opt/trading-agent/app
 EnvironmentFile=/opt/trading-agent/app/.env
-ExecStart=/opt/trading-agent/app/.venv/bin/python -m trading_agent.cli %i
+ExecStart=/opt/trading-agent/app/.venv/bin/python -m trading_agent.cli %i   # %i = run-open | run-monitor | backup
 TimeoutStartSec=30min
 Restart=on-failure
 RestartSec=60

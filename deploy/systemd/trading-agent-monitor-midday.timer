@@ -1,0 +1,10 @@
+[Unit]
+Description=Iron condor agent: run-monitor (monitor-midday)
+
+[Timer]
+OnCalendar=Mon..Fri 12:30 America/New_York
+Persistent=false
+Unit=trading-agent@run-monitor.service
+
+[Install]
+WantedBy=timers.target
