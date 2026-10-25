@@ -29,6 +29,19 @@ aws ssm start-session --target <instance-id> \
 
 Then open http://localhost:8787. It shows paper cash, open condors, realized P&L, the kill switch, recent journal events and the limits, and refreshes every 30 seconds.
 
+### From your phone, laptop or other devices (Tailscale)
+
+Tailscale is a private network between your own devices. Nothing is exposed to the internet and no security-group port opens.
+
+1. Make a free Tailscale account (sign in with a method you control and turn on 2FA). Install the app on each device you want to use.
+2. On the instance (Session Manager shell): `curl -fsSL https://tailscale.com/install.sh | sudo sh`, then `sudo tailscale up`, and open the login link it prints to add the instance to your network. Keep the node key expiry on (default).
+3. Get its address: `tailscale ip -4` (a `100.x.y.z` address).
+4. Set it in `/opt/trading-agent/app/.env`: `DASH_HOST=100.x.y.z`. Optionally add `TA_DASH_PASSWORD=<long random password>` for a second layer, which makes the browser ask for a login (any username).
+5. `sudo systemctl restart trading-agent-dashboard`.
+6. On any of your devices (Tailscale running) open `http://100.x.y.z:8787`.
+
+The server refuses to start on any address that is not loopback or in Tailscale's `100.64.0.0/10` range, so a typo cannot publish it to the internet. In the Tailscale admin console, keep access rules to your own devices only. Traffic is end-to-end encrypted by Tailscale, so plain `http://` inside the tailnet is fine. Without Tailscale installed on a device it cannot reach the page, which is the point.
+
 ## Same instance or a new one?
 
 Use the **existing instance** if it is always on and has headroom (the agent needs < 300 MB RAM and a few CPU-seconds per run). Use a **separate instance** if you want a condor-agent bug or a bad dependency upgrade to be unable to touch the Robinhood agents. Separate costs about $12/month for a `t4g.small`; it's the cleaner choice once live money is involved.

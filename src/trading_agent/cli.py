@@ -17,6 +17,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("backup")
     d = sub.add_parser("dashboard", help="serve the read-only dashboard on 127.0.0.1")
     d.add_argument("--port", type=int, default=8787)
+    d.add_argument("--host", default="127.0.0.1", help="127.0.0.1 or this box's Tailscale 100.x address")
     for name in ("run-open", "run-monitor"):
         r = sub.add_parser(name, help="paper-trading cycle (Yahoo data, simulated account)")
         r.add_argument("--force", action="store_true", help="ignore market hours (testing)")
@@ -39,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
         _screen(a.tickers)
     elif a.cmd == "dashboard":
         from .dashboard import serve
-        serve(a.port)
+        serve(a.port, host=a.host)
     elif a.cmd == "backup":
         from .ops import backup
         ok = backup()

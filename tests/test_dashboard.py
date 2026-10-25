@@ -51,3 +51,48 @@ def test_server_is_loopback_get_only_and_serves_data(cfg, tmp_path, monkeypatch)
             assert e.code == 404
     finally:
         srv.shutdown()
+
+
+import base64
+
+import pytest
+
+
+@pytest.mark.parametrize("h", ["0.0.0.0", "8.8.8.8", "10.0.0.5", "172.31.4.4", "192.168.1.2", "::"])
+def test_public_or_lan_hosts_refused(h):
+    with pytest.raises(ValueError):
+        dashboard.check_host(h)
+
+
+@pytest.mark.parametrize("h", ["127.0.0.1", "::1", "100.64.0.1", "100.101.102.103"])
+def test_loopback_and_tailscale_allowed(h):
+    assert dashboard.check_host(h) == h
+
+
+def test_basic_password():
+    ok = "Basic " + base64.b64encode(b"me:s3cret").decode()
+    bad = "Basic " + base64.b64encode(b"me:nope").decode()
+    assert dashboard.authorized(None, None)                 # no password configured
+    assert dashboard.authorized(ok, "s3cret")
+    assert not dashboard.authorized(bad, "s3cret")
+    assert not dashboard.authorized(None, "s3cret")
+    assert not dashboard.authorized("Basic !!!", "s3cret")
+    assert not dashboard.authorized("Bearer x", "s3cret")
+
+
+def test_server_demands_password_when_set(cfg, tmp_path, monkeypatch):
+    monkeypatch.setenv("TA_DASH_PASSWORD", "s3cret")
+    dashboard.Handler.root = tmp_path
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), dashboard.Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{srv.server_address[1]}/api/data"
+    try:
+        try:
+            urllib.request.urlopen(url)
+            raise AssertionError("served without password")
+        except urllib.error.HTTPError as e:
+            assert e.code == 401
+        req = urllib.request.Request(url, headers={"Authorization": "Basic " + base64.b64encode(b"u:s3cret").decode()})
+        assert urllib.request.urlopen(req).status == 200
+    finally:
+        srv.shutdown()

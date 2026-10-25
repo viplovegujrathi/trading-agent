@@ -20,6 +20,7 @@ TT_ENV=paper
 TA_HALT=0
 TA_METRICS=1
 TA_BACKUP_BUCKET=$BUCKET
+DASH_HOST=127.0.0.1
 ENV
 chmod 600 .env
 mkdir -p state journal

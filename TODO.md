@@ -49,5 +49,6 @@ Status as of 2026-10-25: offline core, paper broker, Yahoo feed and EC2 deploy k
 ## 5. Possible later work
 
 - [ ] Dashboard: option B is built (`cli dashboard`, loopback only, started by `bootstrap.sh`). After deploy, test the SSM port-forward command in deploy.md. The claude.ai Condor Desk artifact is an old snapshot; delete or keep it as you prefer.
+- [ ] Other devices: set up Tailscale on the instance and your devices, set `DASH_HOST` and optionally `TA_DASH_PASSWORD` in `.env` (steps in deploy.md, "From your phone, laptop or other devices").
 - [ ] Optional: show the latest screen table and exit reasons on the dashboard (journal the close reason first).
 - [ ] Review the strategy after 30 closed trades; it is untested on single stocks.
