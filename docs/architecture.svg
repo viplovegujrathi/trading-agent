@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 740" width="1100" height="740" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .box{fill:#ffffff;stroke:#94a3b8;stroke-width:1.5}
+      .gate{fill:#fff7ed;stroke:#ea580c;stroke-width:2}
+      .broker{fill:#eff6ff;stroke:#2563eb;stroke-width:1.5}
+      .t{font-size:13px;fill:#0f172a;font-weight:600}
+      .s{font-size:11px;fill:#475569}
+      .l{font-size:10.5px;fill:#334155}
+      .h{font-size:12px;fill:#64748b;font-weight:600;letter-spacing:.04em}
+      .line{stroke:#475569;stroke-width:1.5;fill:none}
+      .dash{stroke:#64748b;stroke-width:1.3;fill:none;stroke-dasharray:5 4}
+    </style>
+  </defs>
+
+  <rect width="1100" height="740" fill="#f8fafc"/>
+  <text x="30" y="42" font-size="20" font-weight="700" fill="#0f172a">Iron Condor Agent — architecture</text>
+  <text x="30" y="62" class="s">Every live order: risk gate → broker dry-run → risk gate → your approval → one 4-leg order</text>
+
+  <!-- Scheduler -->
+  <rect x="30" y="90" width="170" height="60" rx="8" class="box"/>
+  <text x="115" y="116" text-anchor="middle" class="t">Scheduler (cron)</text>
+  <text x="115" y="134" text-anchor="middle" class="s">9:45 · 12:30 · 15:15 ET</text>
+
+  <!-- Orchestrator -->
+  <rect x="250" y="80" width="560" height="80" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="530" y="110" text-anchor="middle" class="t">Claude Code + iron-condor-tastytrade skill</text>
+  <text x="530" y="130" text-anchor="middle" class="s">runs the workflow · explains candidates · drafts tickets and summaries</text>
+  <text x="530" y="147" text-anchor="middle" class="s">cannot compute limits or bypass gates</text>
+  <path d="M200,120 L248,120" class="line" marker-end="url(#a)"/>
+  <path d="M530,160 L530,188" class="line" marker-end="url(#a)"/>
+
+  <!-- Core container -->
+  <rect x="250" y="190" width="560" height="490" rx="10" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="262" y="208" class="h">PYTHON CORE · DETERMINISTIC</text>
+
+  <!-- Middle pipeline -->
+  <rect x="440" y="220" width="180" height="48" rx="7" class="box"/>
+  <text x="530" y="240" text-anchor="middle" class="t">Screener</text>
+  <text x="530" y="256" text-anchor="middle" class="s">52w high · 50dma · RSI · events</text>
+
+  <rect x="440" y="285" width="180" height="48" rx="7" class="box"/>
+  <text x="530" y="305" text-anchor="middle" class="t">Structure &amp; sizer</text>
+  <text x="530" y="321" text-anchor="middle" class="s">expiry · strikes · wings · credit</text>
+
+  <rect x="440" y="350" width="180" height="48" rx="7" class="gate"/>
+  <text x="530" y="370" text-anchor="middle" class="t">Risk gate · pre</text>
+  <text x="530" y="386" text-anchor="middle" class="s">caps · deltas · portfolio</text>
+
+  <rect x="440" y="415" width="180" height="48" rx="7" class="broker"/>
+  <text x="530" y="435" text-anchor="middle" class="t">Order builder + dry-run</text>
+  <text x="530" y="451" text-anchor="middle" class="s">4 legs · net credit · ext-id</text>
+
+  <rect x="440" y="480" width="180" height="48" rx="7" class="gate"/>
+  <text x="530" y="500" text-anchor="middle" class="t">Risk gate · post</text>
+  <text x="530" y="516" text-anchor="middle" class="s">uses broker BP effect</text>
+
+  <rect x="440" y="545" width="180" height="48" rx="7" class="gate"/>
+  <text x="530" y="565" text-anchor="middle" class="t">Approval gate</text>
+  <text x="530" y="581" text-anchor="middle" class="s">explicit YES · 15-min expiry</text>
+
+  <rect x="440" y="610" width="180" height="48" rx="7" class="broker"/>
+  <text x="530" y="630" text-anchor="middle" class="t">Submit</text>
+  <text x="530" y="646" text-anchor="middle" class="s">lookup by ext-id before retry</text>
+
+  <path d="M530,268 L530,283" class="line" marker-end="url(#a)"/>
+  <path d="M530,333 L530,348" class="line" marker-end="url(#a)"/>
+  <path d="M530,398 L530,413" class="line" marker-end="url(#a)"/>
+  <path d="M530,463 L530,478" class="line" marker-end="url(#a)"/>
+  <path d="M530,528 L530,543" class="line" marker-end="url(#a)"/>
+  <path d="M530,593 L530,608" class="line" marker-end="url(#a)"/>
+
+  <!-- Left column -->
+  <rect x="270" y="220" width="150" height="48" rx="7" class="box"/>
+  <text x="345" y="240" text-anchor="middle" class="t">Auth client</text>
+  <text x="345" y="256" text-anchor="middle" class="s">OAuth2 · 15-min tokens</text>
+
+  <rect x="270" y="350" width="150" height="48" rx="7" class="gate"/>
+  <text x="345" y="370" text-anchor="middle" class="t">Kill switch</text>
+  <text x="345" y="386" text-anchor="middle" class="s">state/HALT blocks opens</text>
+  <path d="M420,374 L438,374" class="line" marker-end="url(#a)"/>
+
+  <!-- Right column -->
+  <rect x="640" y="220" width="150" height="48" rx="7" class="broker"/>
+  <text x="715" y="240" text-anchor="middle" class="t">Market data</text>
+  <text x="715" y="256" text-anchor="middle" class="s">chains · greeks · metrics</text>
+  <path d="M640,244 L622,244" class="line" marker-end="url(#a)"/>
+  <path d="M640,258 L630,258 L630,309 L622,309" class="line" marker-end="url(#a)"/>
+
+  <rect x="640" y="285" width="150" height="70" rx="7" class="box"/>
+  <text x="715" y="307" text-anchor="middle" class="t">Position monitor</text>
+  <text x="715" y="324" text-anchor="middle" class="s">50% · 21 DTE · touch</text>
+  <text x="715" y="340" text-anchor="middle" class="s">day before expiry</text>
+  <path d="M680,355 L680,374 L622,374" class="line" marker-end="url(#a)"/>
+  <text x="684" y="370" class="l">closes</text>
+
+  <rect x="640" y="480" width="150" height="110" rx="7" class="box"/>
+  <text x="715" y="504" text-anchor="middle" class="t">Journal &amp; state</text>
+  <text x="715" y="524" text-anchor="middle" class="s">journal/*.jsonl</text>
+  <text x="715" y="540" text-anchor="middle" class="s">state/positions.json</text>
+  <text x="715" y="556" text-anchor="middle" class="s">daily summary</text>
+  <text x="715" y="576" text-anchor="middle" class="l">every stage logs here</text>
+  <path d="M620,569 L638,569" class="dash" marker-end="url(#a)"/>
+  <path d="M620,634 L630,634 L630,590 L638,590" class="dash" marker-end="url(#a)"/>
+
+  <!-- You -->
+  <rect x="30" y="535" width="170" height="64" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="1.8"/>
+  <text x="115" y="561" text-anchor="middle" class="t">You</text>
+  <text x="115" y="579" text-anchor="middle" class="s">push · Slack · email</text>
+  <path d="M438,569 L202,569" class="line" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text x="320" y="561" text-anchor="middle" class="l">ticket → / ← YES ext-id</text>
+
+  <!-- tastytrade -->
+  <rect x="850" y="190" width="220" height="490" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  <text x="960" y="218" text-anchor="middle" class="t">tastytrade API</text>
+  <text x="960" y="236" text-anchor="middle" class="s">sandbox → production</text>
+  <text x="866" y="270" class="l">POST /oauth/token</text>
+  <text x="866" y="290" class="l">GET /option-chains/{sym}/nested</text>
+  <text x="866" y="310" class="l">GET /market-metrics</text>
+  <text x="866" y="330" class="l">DXLink quotes + greeks</text>
+  <text x="866" y="350" class="l">GET /accounts/{a}/positions</text>
+  <text x="866" y="440" class="l">POST /accounts/{a}/orders/dry-run</text>
+  <text x="866" y="460" class="l">→ buying-power effect, fees</text>
+  <text x="866" y="635" class="l">POST /accounts/{a}/orders</text>
+  <text x="866" y="655" class="l">GET  /orders/live (lookup)</text>
+
+  <path d="M792,244 L848,244" class="line" marker-start="url(#a)" marker-end="url(#a)"/>
+  <path d="M792,320 L848,320" class="line" marker-start="url(#a)" marker-end="url(#a)"/>
+  <path d="M622,439 L848,439" class="line" marker-start="url(#a)" marker-end="url(#a)"/>
+  <path d="M622,630 L848,630" class="line" marker-start="url(#a)" marker-end="url(#a)"/>
+  <path d="M270,244 L240,244 L240,700 L960,700 L960,682" class="dash"/>
+  <text x="600" y="714" text-anchor="middle" class="l">auth client supplies the bearer token for every tastytrade call</text>
+
+  <!-- Legend -->
+  <rect x="30" y="250" width="12" height="12" class="gate"/><text x="48" y="260" class="s">gate (can block)</text>
+  <rect x="30" y="272" width="12" height="12" class="broker"/><text x="48" y="282" class="s">talks to broker</text>
+  <path d="M30,302 L60,302" class="line"/><text x="66" y="306" class="s">control flow</text>
+  <path d="M30,322 L60,322" class="dash"/><text x="66" y="326" class="s">data / log</text>
+</svg>

@@ -1,0 +1,57 @@
+# Copy to config/strategy.yaml. Every limit enforced by risk.py comes from here.
+account:
+  size_usd: 5000
+  cash_buffer_usd: 1000
+
+portfolio:
+  max_open_condors: 4          # set to 1 for the first 4 live weeks
+  max_per_ticker: 1
+  max_per_sector: 2
+  contracts_per_condor: 1
+  max_orders_per_day: 6
+  daily_loss_halt_usd: 500
+
+screen:
+  universe: sp500
+  universe_max_age_days: 30
+  min_pct_off_52w_high: 15
+  pct_below_50dma: [3, 8]
+  max_rsi14: 60
+  min_open_interest_short: 500
+  max_short_leg_spread_pct_of_mid: 10
+  preferred_min_iv_rank: 25
+  exclude_earnings_before_expiry: true
+  exclude_ex_dividend_before_expiry: true
+
+structure:
+  dte_window: [30, 45]
+  dte_target: 33
+  wing_widths_usd: [2.5, 5, 7.5, 10]
+  short_put_min_otm_pct: 3
+  short_call_min_above_price_pct: 5
+  short_call_at_or_above_50dma: true
+  max_short_delta: 0.20
+  call_wing_le_put_wing: true
+  min_call_side_credit: 0.15     # per share; below this, fall back to put spread
+
+sizing:
+  max_collateral_usd: 1000
+  min_total_credit_usd: 100
+
+pricing:
+  limit: mid
+  reprice_after_minutes: 10
+  reprice_step: 0.05
+  max_reprices: 1
+  avoid_first_last_minutes: 15
+
+exits:
+  take_profit_pct_of_max: 50
+  close_at_dte: 21
+  close_on_short_strike_touch: true
+  close_day_before_expiry: true
+  stop_loss_multiple_of_credit: 2.0
+
+approval:
+  required: true
+  timeout_minutes: 15

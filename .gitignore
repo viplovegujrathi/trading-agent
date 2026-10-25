@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+state/
+journal/
+config/strategy.yaml
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
