@@ -17,6 +17,18 @@ The agent runs on an EC2 instance, next to the Robinhood agents. The Python core
 
 All traffic is outbound: tastytrade API, the approval bot, AWS APIs.
 
+## Viewing the dashboard
+
+The dashboard (`cli dashboard`, enabled by `bootstrap.sh` as `trading-agent-dashboard.service`) is read-only and listens on **127.0.0.1:8787 only**. No security-group port is opened. From your Mac, forward it through Session Manager (needs the AWS CLI and the Session Manager plugin):
+
+```bash
+aws ssm start-session --target <instance-id> \
+  --document-name AWS-StartPortForwardingSession \
+  --parameters '{"portNumber":["8787"],"localPortNumber":["8787"]}'
+```
+
+Then open http://localhost:8787. It shows paper cash, open condors, realized P&L, the kill switch, recent journal events and the limits, and refreshes every 30 seconds.
+
 ## Same instance or a new one?
 
 Use the **existing instance** if it is always on and has headroom (the agent needs < 300 MB RAM and a few CPU-seconds per run). Use a **separate instance** if you want a condor-agent bug or a bad dependency upgrade to be unable to touch the Robinhood agents. Separate costs about $12/month for a `t4g.small`; it's the cleaner choice once live money is involved.

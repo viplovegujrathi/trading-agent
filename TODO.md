@@ -9,6 +9,7 @@ Status as of 2026-10-25: offline core, paper broker, Yahoo feed and EC2 deploy k
 - [ ] Attach a role with [deploy/iam-policy.json](deploy/iam-policy.json) (replace `BUCKET`) plus `AmazonSSMManagedInstanceCore`. No SSH, no inbound security-group rules.
 - [ ] In a Session Manager shell: `sudo BUCKET=<bucket> bash deploy/bootstrap.sh`.
 - [ ] Check timers: `systemctl list-timers 'trading-agent*'`.
+- [ ] Open the dashboard through SSM port forwarding (deploy.md, "Viewing the dashboard").
 - [ ] Smoke test: `sudo -iu tagent`, then `cd app && .venv/bin/python -m trading_agent.cli run-open --force`.
 - [ ] Create CloudWatch alarms: no `RunCompleted` for `run-open` by 10:15 ET or `run-monitor` by 15:45 ET; any `RunFailed`. Send to an SNS topic (email and phone).
 - [ ] Optional: give Claude a configured AWS CLI on the Mac and it can provision with you watching.
@@ -47,9 +48,6 @@ Status as of 2026-10-25: offline core, paper broker, Yahoo feed and EC2 deploy k
 
 ## 5. Possible later work
 
-- [ ] Dashboard hosting. Today Condor Desk is a private claude.ai artifact holding a static snapshot (https://claude.ai/artifact/PtwFatBn7gVmERXGT1m8Sd). It cannot read files on EC2. Options:
-  - A. Keep the artifact; add `cli dashboard-export` on EC2 (writes screen/positions/P&L/limits JSON to S3) and have a Claude scheduled task pull it and re-upload. Simple, nothing exposed, updates only when Claude runs.
-  - B. Self-host a static page on EC2 reached through Session Manager port forwarding (keeps "no inbound rules"). Live, private to you, no third party.
-  - C. S3 + CloudFront with sign-in (Cognito or CloudFront signed cookies) for access from any device. Live but adds exposed infrastructure; add auth first.
-  - Recommendation: A while paper trading, B or C if you want it always live.
+- [ ] Dashboard: option B is built (`cli dashboard`, loopback only, started by `bootstrap.sh`). After deploy, test the SSM port-forward command in deploy.md. The claude.ai Condor Desk artifact is an old snapshot; delete or keep it as you prefer.
+- [ ] Optional: show the latest screen table and exit reasons on the dashboard (journal the close reason first).
 - [ ] Review the strategy after 30 closed trades; it is untested on single stocks.

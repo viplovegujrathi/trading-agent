@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Condor Desk</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--fg:#14181f;--mut:#5d6675;--line:#dde1e8;--ok:#13795b;--bad:#b42318;--warn:#a15c07;--acc:#2456d6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1319;--panel:#171c24;--fg:#e8ebf0;--mut:#9aa4b2;--line:#2a313c;--ok:#4cc29a;--bad:#f07a6e;--warn:#e0a84a;--acc:#7ea1ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,sans-serif;padding:16px}
+main{max-width:72rem;margin:auto;display:flex;flex-direction:column;gap:14px}
+h1{font-size:1.5rem;margin:0;font-weight:600}h2{font-size:1rem;margin:0 0 8px;font-weight:600}
+.sub{color:var(--mut);margin:2px 0 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
+.big{font-size:1.7rem;font-variant-numeric:tabular-nums}.mut{color:var(--mut)}.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+.scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13px}
+th{text-align:left;color:var(--mut);font-weight:500;padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.pill{border:1px solid currentColor;border-radius:99px;padding:0 8px;font-size:12px}
+</style></head><body><main>
+<header><h1>Condor Desk</h1><p class="sub" id="sub">Loading…</p></header>
+<div class="grid">
+ <div class="card"><div class="mut">Paper cash available</div><div class="big" id="avail">—</div><div class="mut" id="acct"></div></div>
+ <div class="card"><div class="mut">Open condors</div><div class="big" id="open">—</div><div class="mut" id="openmax"></div></div>
+ <div class="card"><div class="mut">Realized P&amp;L (paper)</div><div class="big" id="pnl">—</div><div class="mut" id="wins"></div></div>
+ <div class="card"><div class="mut">Kill switch</div><div class="big" id="halt">—</div><div class="mut">state/HALT or TA_HALT</div></div>
+</div>
+<div class="card"><h2>Open positions</h2><div class="scroll"><table id="pos"><thead><tr><th>Ticker</th><th>Expiry</th><th>Put spread</th><th>Call spread</th><th>Credit</th><th>Collateral</th><th>Touched</th></tr></thead><tbody></tbody></table></div></div>
+<div class="card"><h2>Recent activity</h2><div class="scroll"><table id="ev"><thead><tr><th>Time (UTC)</th><th>Event</th><th>Ticker</th><th>Detail</th></tr></thead><tbody></tbody></table></div></div>
+<div class="card"><h2>Hard limits</h2><div id="lim" class="mut"></div></div>
+<p class="mut">Prices are modeled (Yahoo) in paper mode. Read-only view; refreshes every 30 seconds.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id), usd=n=>n==null?'—':new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
+function cell(tr,t,cls){const td=document.createElement('td');td.textContent=t;if(cls)td.className=cls;tr.appendChild(td)}
+async function load(){
+ try{const d=await (await fetch('/api/data',{cache:'no-store'})).json();
+  $('sub').textContent='Updated '+new Date(d.generated).toLocaleTimeString()+' · '+d.env+' mode';
+  const a=d.account; $('avail').textContent=a?usd(a.available):'no account yet';
+  $('acct').textContent=a?('cash '+usd(a.cash)+' · reserved '+usd(a.reserved)+' · started '+usd(a.start)):'';
+  $('open').textContent=d.positions.length; $('openmax').textContent='limit '+d.limits.max_open;
+  const p=$('pnl'); p.textContent=usd(d.stats.total_pnl); p.className='big '+(d.stats.total_pnl<0?'bad':d.stats.total_pnl>0?'ok':'');
+  $('wins').textContent=d.stats.wins+' of '+d.stats.closed+' closed won · graduation needs '+d.stats.graduation_target+' live';
+  const h=$('halt'); h.textContent=d.halted?'ON':'Off'; h.className='big '+(d.halted?'bad':'ok');
+  const tb=document.querySelector('#pos tbody'); tb.textContent='';
+  if(!d.positions.length){const tr=document.createElement('tr');cell(tr,'No open condors');tb.appendChild(tr)}
+  d.positions.forEach(x=>{const tr=document.createElement('tr');cell(tr,x.ticker);cell(tr,x.expiry);
+   cell(tr,x.short_put+' / '+x.long_put);cell(tr,x.short_call==null?'none (put spread)':x.short_call+' / '+x.long_call);
+   cell(tr,usd(x.credit*100));cell(tr,usd(x.collateral));cell(tr,x.touched?'yes':'no',x.touched?'bad':'');tb.appendChild(tr)});
+  const eb=document.querySelector('#ev tbody'); eb.textContent='';
+  d.events.forEach(e=>{const tr=document.createElement('tr');
+   const bad=/reject|unknown|halt|assign|breach/.test(e.event);
+   cell(tr,e.ts.slice(0,19).replace('T',' '));cell(tr,e.event,bad?'bad':'');cell(tr,e.ticker||'');
+   const {ts,event,ticker,external_identifier,env,...rest}=e; cell(tr,JSON.stringify(rest).slice(0,140));eb.appendChild(tr)});
+  const L=d.limits; $('lim').textContent='Collateral ≤ '+usd(L.max_collateral)+' · credit ≥ '+usd(L.min_credit)+' · ≤ '+L.max_open+' open · ≤ '+L.max_per_sector+' per sector · halt at '+usd(L.daily_loss_halt)+' daily loss';
+ }catch(err){$('sub').textContent='Could not load data'}
+}
+load();setInterval(load,30000);
+</script></body></html>

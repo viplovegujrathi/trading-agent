@@ -1,0 +1,17 @@
+[Unit]
+Description=Iron condor agent: read-only dashboard (127.0.0.1 only)
+After=network-online.target
+
+[Service]
+User=tagent
+WorkingDirectory=/opt/trading-agent/app
+EnvironmentFile=/opt/trading-agent/app/.env
+ExecStart=/opt/trading-agent/app/.venv/bin/python -m trading_agent.cli dashboard --port 8787
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadOnlyPaths=/opt/trading-agent/app
+
+[Install]
+WantedBy=multi-user.target

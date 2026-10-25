@@ -30,4 +30,5 @@ cp /opt/trading-agent/app/deploy/systemd/* /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now trading-agent-open.timer trading-agent-monitor-midday.timer \
   trading-agent-monitor-close.timer trading-agent-backup.timer
+systemctl enable --now trading-agent-dashboard.service
 systemctl list-timers 'trading-agent*'
