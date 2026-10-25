@@ -1,15 +1,15 @@
-import warnings
-warnings.filterwarnings("ignore")
-
 """Yahoo Finance history via yfinance (unofficial, free). Used for screening only.
 Every value from here is labeled 'modeled': never used for order limits, which come
 from broker quotes. Any failure returns None so the screener excludes the name."""
 from __future__ import annotations
 
+import warnings
 from datetime import date
 
 from . import indicators as ind
 from .screen import Snapshot
+
+warnings.filterwarnings("ignore")
 
 
 def fetch_snapshot(ticker: str, iv_rank: float | None = None) -> Snapshot | None:
