@@ -40,3 +40,18 @@ def reprice(c: Condor, cfg: dict) -> float | None:
     """One step down, never below the minimum credit. None = cancel instead."""
     new = round(c.total_credit - cfg["pricing"]["reprice_step"], 2)
     return new if new * 100 >= cfg["sizing"]["min_total_credit_usd"] else None
+
+
+def build_close_order(pos: dict, debit: float, ext_id: str) -> dict:
+    """One multi-leg limit debit order that closes the whole condor (never leg out)."""
+    t, e = pos["ticker"], pos["expiry"]
+    legs = [(pos["short_put"], "P", "Buy to Close"), (pos["long_put"], "P", "Sell to Close")]
+    if pos.get("short_call") is not None:
+        legs += [(pos["short_call"], "C", "Buy to Close"), (pos["long_call"], "C", "Sell to Close")]
+    return {
+        "order-type": "Limit", "time-in-force": "Day",
+        "price": f"{debit:.2f}", "price-effect": "Debit",
+        "external-identifier": ext_id,
+        "legs": [{"instrument-type": "Equity Option", "symbol": _occ(t, e, k, s),
+                  "quantity": pos["contracts"], "action": a} for s, k, a in legs],
+    }
