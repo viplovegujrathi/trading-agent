@@ -14,6 +14,11 @@ def main(argv: list[str] | None = None) -> int:
     h.add_argument("--clear", metavar="NOTE")
     h.add_argument("--reason", default="manual")
     sub.add_parser("status")
+    for name in ("run-open", "run-monitor"):
+        r = sub.add_parser(name, help="paper-trading cycle (Yahoo data, simulated account)")
+        r.add_argument("--force", action="store_true", help="ignore market hours (testing)")
+        if name == "run-open":
+            r.add_argument("tickers", nargs="*")
     sc = sub.add_parser("screen")
     sc.add_argument("--dry", action="store_true", help="print table, place nothing")
     sc.add_argument("tickers", nargs="*")
@@ -29,7 +34,67 @@ def main(argv: list[str] | None = None) -> int:
         print(f"halted: {is_halted()}  open condors: {len(load_positions())}")
     elif a.cmd == "screen":
         _screen(a.tickers)
+    elif a.cmd in ("run-open", "run-monitor"):
+        _run(a.cmd, getattr(a, "tickers", []), a.force)
     return 0
+
+
+def _run(cmd: str, tickers: list[str], force: bool) -> None:
+    import os
+    from datetime import datetime, timezone
+    from . import journal, options_yahoo as oy, engine
+    from .calendar_us import HOLIDAYS, session_minutes
+    from .config import load_config
+    from .paper import PaperBroker
+    from .prices_yahoo import fetch_snapshot
+    from .screen import screen_name
+    from .structure import pick_expiry
+    from .universe import load_universe
+
+    env = os.environ.get("TT_ENV", "paper")
+    if env not in ("paper", "sandbox"):
+        raise SystemExit("run-open/run-monitor use Yahoo data and the paper broker: TT_ENV must be paper")
+    cfg, now = load_config(), datetime.now(timezone.utc)
+    today = now.date()
+    sm = session_minutes(now)
+    if sm is None and not force:
+        print("market closed; use --force to run anyway")
+        return
+    sm = sm or (60, 300)
+    broker = PaperBroker(cfg["account"]["size_usd"])
+    if cmd == "run-open":
+        _, uni = load_universe()
+        cands = []
+        for t in tickers or uni:
+            snap = fetch_snapshot(t)
+            if snap is None:
+                continue
+            exp = pick_expiry(oy.listed_expiries(t), today, cfg)
+            if exp is None or not screen_name(snap, exp, cfg).passed:
+                continue
+            cands.append(engine.Candidate(snap, uni.get(t, "Unknown"), exp,
+                                          oy.fetch_chain(t, exp, snap.price, today)))
+        res = engine.open_cycle(cands, broker, broker.available_cash, cfg, env, today, sm[0], sm[1])
+        print(f"candidates passing screen: {len(cands)}")
+        for t, o in res:
+            print(f"{t:6} {o.status} {'; '.join(o.detail)}")
+    else:
+        marks = {}
+        for p in journal.load_positions():
+            snap = fetch_snapshot(p["ticker"])
+            ch = oy.fetch_chain(p["ticker"], __import__("datetime").date.fromisoformat(p["expiry"]),
+                                snap.price if snap else 0, today) if snap else []
+            c = oy.cost_to_close(p, ch)
+            if c is None or snap is None:
+                continue
+            marks[p["ext"]] = dict(cost_to_close=c, low=snap.price, high=snap.price,
+                                   ex_div_before_expiry=snap.next_ex_dividend is not None
+                                   and snap.next_ex_dividend.isoformat() <= p["expiry"],
+                                   call_near_money=p["short_call"] is not None
+                                   and snap.price >= 0.97 * p["short_call"])
+        for t, act, why in engine.monitor_cycle(marks, broker, cfg, env, today, HOLIDAYS):
+            print(f"{t:6} {act} {', '.join(why)}")
+        print(f"paper cash {broker.acct['cash']:.2f}  reserved {broker.acct['reserved']:.2f}")
 
 
 def _screen(tickers: list[str]) -> None:
