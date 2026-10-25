@@ -47,5 +47,9 @@ Status as of 2026-10-25: offline core, paper broker, Yahoo feed and EC2 deploy k
 
 ## 5. Possible later work
 
-- [ ] Dashboard (Condor Desk) is a snapshot; feed it live from `journal/` and `state/` once the agent runs on EC2.
+- [ ] Dashboard hosting. Today Condor Desk is a private claude.ai artifact holding a static snapshot (https://claude.ai/artifact/PtwFatBn7gVmERXGT1m8Sd). It cannot read files on EC2. Options:
+  - A. Keep the artifact; add `cli dashboard-export` on EC2 (writes screen/positions/P&L/limits JSON to S3) and have a Claude scheduled task pull it and re-upload. Simple, nothing exposed, updates only when Claude runs.
+  - B. Self-host a static page on EC2 reached through Session Manager port forwarding (keeps "no inbound rules"). Live, private to you, no third party.
+  - C. S3 + CloudFront with sign-in (Cognito or CloudFront signed cookies) for access from any device. Live but adds exposed infrastructure; add auth first.
+  - Recommendation: A while paper trading, B or C if you want it always live.
 - [ ] Review the strategy after 30 closed trades; it is untested on single stocks.
