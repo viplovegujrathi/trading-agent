@@ -8,8 +8,8 @@ An iron condor trading agent for tastytrade. Design docs: [plan.md](plan.md), [a
 
 ## Non-negotiable rules
 
-1. **Never submit a live order without the user's explicit yes for that exact ticket in this session.** A yes for one ticket does not cover another.
-2. Every order goes through `risk.py` → `orders/dry-run` → `risk.py` → approval → submit. Never call the submit endpoint any other way, including from an MCP server.
+1. **Paper and sandbox: the agent trades on its own** (`approval.mode: auto`, no real money). **Production: never submit without the user's explicit yes for that exact ticket in this session**, until the code-enforced graduation test passes (30+ closed live condors, 0 limit breaches, 0 unknown orders; see `autonomy.py`). A yes for one ticket does not cover another. Autonomy decided by the user on 2026-10-25; paper account starts at $5,000.
+2. Every order goes through `risk.py` → `orders/dry-run` → `risk.py` → approval route (`autonomy.py`) → submit. Autonomous mode skips only the human yes, never a risk check. Never call the submit endpoint any other way, including from an MCP server.
 3. Never leg in. Condors open and close as single multi-leg orders.
 4. Never place market orders on options.
 5. If an order's status is unknown, look it up by `external-identifier`; never resend blindly.
@@ -22,7 +22,7 @@ An iron condor trading agent for tastytrade. Design docs: [plan.md](plan.md), [a
 
 - Limits live in `config/strategy.yaml` and are enforced in `risk.py`. Do not hard-code limits elsewhere.
 - Any change to `risk.py`, `orders.py` or `broker.py` needs tests, and the commit message must say what risk changed.
-- Default to `TT_ENV=sandbox`. Ask before running anything against production.
+- Default to `TT_ENV=paper` (simulated $5,000 account, `paper.py`); then `sandbox`. Ask before running anything against production.
 - Keep the model out of the numbers: screening, sizing and limit checks are pure functions with tests.
 
 ## Conventions

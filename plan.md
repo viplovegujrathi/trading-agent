@@ -12,7 +12,7 @@ Build an iron condor agent that trades through tastytrade's official API, sandbo
 ## Non-goals
 
 - Replacing the Robinhood put-spread or DITM agents.
-- Fully unattended live trading. Approval stays on until Phase 5 criteria are met.
+- Fully unattended live trading before the Phase 5 graduation test passes (enforced in `autonomy.py`).
 - Undefined-risk trades (naked options, strangles), cash-secured puts, calendars.
 
 ## Fixed decisions
@@ -23,7 +23,7 @@ Build an iron condor agent that trades through tastytrade's official API, sandbo
 | Account size | $5,000 | User-approved |
 | Per-condor collateral cap | $1,000 | Max 4 open condors with a $1,000 buffer |
 | Order type | Limit, net credit, Day | Multi-leg market orders are a bad fill risk |
-| Approval | Human yes before every live submit | No order leaves the box without it |
+| Approval | Autonomous in paper/sandbox; human yes before every production submit until graduation (30+ closed live condors, 0 breaches, 0 unknown orders) | Decided 2026-10-25: agent trades on its own, starting with a $5,000 paper account |
 | Runtime | AWS EC2, Python core on systemd timers; Claude Code interactive only | Same AWS setup as the Robinhood agents; a missed close never depends on Claude |
 
 ## Phases

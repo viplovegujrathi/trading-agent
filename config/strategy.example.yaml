@@ -53,5 +53,10 @@ exits:
   stop_loss_multiple_of_credit: 2.0
 
 approval:
+  mode: auto                   # human | auto. auto: sandbox/paper always; production only after graduation
   required: true
   timeout_minutes: 15
+  graduation:                   # production auto-trading unlocks only when ALL are true (plan.md Phase 5)
+    min_closed_live_condors: 30
+    max_limit_breaches: 0
+    max_unknown_orders: 0
