@@ -11,13 +11,13 @@ The agent runs on an AWS EC2 instance as a set of deterministic Python modules s
 | 1 | **Scheduler** | systemd timers on EC2: screen (9:45 ET), monitor (12:30 and 15:15 ET), backup (every 15 min) | Yes |
 | 2 | **Claude Code + skill (interactive)** | Explains candidates, reviews the journal, writes summaries, helps change code. Not in the scheduled order path | No (cannot bypass gates) |
 | 3 | **Auth client** | Reads secrets from SSM Parameter Store; exchanges the refresh token for a 15-minute access token; saves a rotated refresh token back to SSM; fails closed | Yes |
-| 4 | **Market data** | Option chains, quotes, greeks, underlying history, IV rank, earnings and ex-dividend dates | Yes |
+| 4 | **Market data** | Option chains, quotes, greeks, IV rank, earnings and ex-dividend dates from tastytrade; daily history from `data/history/` CSVs. A missing delta is computed with Black-Scholes and labeled `modeled` | Yes |
 | 5 | **Screener** | Applies the universe and base-screen rules from `strategy.yaml` | Yes |
 | 6 | **Strike selector & sizer** | Picks expiry, short/long strikes, wing widths; computes credit, collateral, breakevens | Yes |
 | 7 | **Risk gate** | Enforces hard limits in [risk.md](risk.md); runs before and after dry-run | Yes |
 | 8 | **Order builder** | Builds the 4-leg JSON with net-credit limit and unique `external-identifier` | Yes |
 | 9 | **Broker client** | `POST orders/dry-run`, `POST orders`, order lookup, positions, balances | Yes |
-| 10 | **Approval gate** | Sends the ticket through a Slack (Socket Mode) or Telegram bot; accepts `YES <external-identifier>` only from your user ID; expires after 15 min | Yes |
+| 10 | **Approval gate** | Sends the ticket through the CLI or a Telegram bot (Slack Socket Mode planned); accepts `YES <external-identifier>` only from your user ID; expires after 15 min | Yes |
 | 11 | **Position monitor** | Evaluates exit rules on open condors and proposes closes through the same path | Yes |
 | 12 | **Journal & state** | Append-only JSONL journal; `positions.json`; daily summary | Yes |
 | 13 | **Kill switch** | A file (`state/HALT`) or env flag that blocks all new orders; closes are still allowed | Yes |
@@ -86,7 +86,7 @@ stateDiagram-v2
 | Place order | `POST /accounts/{account}/orders` |
 | Find order | `GET /accounts/{account}/orders/live` and `/orders` |
 | Positions / balances | `GET /accounts/{account}/positions`, `/balances` |
-| Quotes and greeks | DXLink streaming via `/api-quote-tokens` |
+| Quotes and greeks | `GET /market-data/by-type` (REST snapshot, used now); DXLink streaming via `/api-quote-tokens` for live greeks later |
 | IV rank, earnings, dividends | `GET /market-metrics?symbols=` |
 
 Every request carries `Authorization: Bearer <token>` and `User-Agent: trading-agent/<version>`.
@@ -119,7 +119,8 @@ The API does not dedupe retried submissions. So:
 ```
 state/
   positions.json      # open condors, legs, entry credit, exit flags
-  HALT                # present = kill switch on
+  tickets.json        # approval tickets and order status by external-identifier
+  HALT                # present = kill switch on (one line per trip reason)
 journal/
   2026-10-27.jsonl    # one line per event: screen, proposal, dry-run, approval, submit, fill, close
 config/
@@ -133,21 +134,31 @@ Secrets (client ID/secret, refresh token, account number, bot token) live in SSM
 
 ```
 src/trading_agent/
+  config.py        # settings from env/.env, limits from strategy.yaml
+  models.py        # shared data types
+  tradingcal.py    # NYSE holidays, session window, UTC -> Chicago display
+  indicators.py    # SMA, RSI, 52w high, Black-Scholes delta
   auth.py          # token exchange and refresh
-  broker.py        # REST client: dry-run, submit, lookup, positions
+  broker.py        # REST client: dry-run, submit, lookup, positions; idempotent submit
   marketdata.py    # chains, quotes, greeks, metrics, history
   screen.py        # universe + base screen
   structure.py     # expiry, strikes, wings, sizing
-  risk.py          # hard limits, pre and post dry-run
-  orders.py        # 4-leg JSON builder, external-identifier
-  approval.py      # notify + wait for yes
-  monitor.py       # exit rules on open condors
-  journal.py       # JSONL + positions.json
+  risk.py          # hard limits, pre and post dry-run, pre-submit, kill switch
+  orders.py        # multi-leg JSON builder, external-identifier
+  approval.py      # tickets, notify + wait for yes
+  monitor.py       # exit rules on open condors, assignment detection
+  journal.py       # JSONL + positions.json + tickets.json
+  agent.py         # wires the order path end to end
+  paper.py         # offline simulated market + broker (TT_ENV=paper)
   ops.py           # S3 backup, CloudWatch metrics
-  cli.py           # screen | propose | monitor | close | status | halt
+  cli.py           # status | screen | propose | submit | decline | monitor | close | halt | resolve | tickets | summary | backup
 tests/
+scripts/           # update_universe.py, fetch_history.py
+deploy/systemd/    # service + timers from deploy.md
 skills/iron-condor-tastytrade/SKILL.md
 ```
+
+`broker.submit` takes an `Approval` object matching the order's `external-identifier`. Only `approval.py` creates one, after a `YES <ext>`, so nothing can reach the submit endpoint around the gates.
 
 ## Security
 

@@ -73,6 +73,8 @@ Runs as its own unprivileged user, separate from the Robinhood agents.
 
 ## 4. systemd timers
 
+The unit files below are in [deploy/systemd/](deploy/systemd/), plus a 16:15 ET `summary` timer. Install with `sudo cp deploy/systemd/* /etc/systemd/system/`. Set `TA_SECRETS=ssm`, `AWS_REGION`, `TA_BACKUP_BUCKET` and `TA_METRICS=cloudwatch` in `.env`, and `pip install boto3` in the venv.
+
 `/etc/systemd/system/trading-agent@.service`
 
 ```ini
@@ -121,7 +123,7 @@ WantedBy=timers.target
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now trading-agent-screen.timer trading-agent-monitor.timer trading-agent-backup.timer
+sudo systemctl enable --now trading-agent-screen.timer trading-agent-monitor.timer trading-agent-summary.timer trading-agent-backup.timer
 systemctl list-timers 'trading-agent*'
 ```
 
@@ -133,8 +135,8 @@ The approval gate lives in the Python core (`approval.py`) and needs two-way mes
 
 | Channel | How | Notes |
 |---|---|---|
-| Slack (recommended if you use Slack) | Slack app in **Socket Mode** | Outbound websocket; YES/NO buttons |
-| Telegram | Bot with long polling | Simplest setup; restrict to your chat ID |
+| Slack | Slack app in **Socket Mode** | Not built yet; selecting it fails closed (tickets expire unsent) |
+| Telegram (built) | Bot with long polling | `TA_APPROVAL_CHANNEL=telegram`; set `TA_TELEGRAM_CHAT_ID` and `TA_TELEGRAM_USER_ID` in `.env`, the bot token in SSM or `TA_TELEGRAM_BOT_TOKEN` |
 
 The bot accepts a reply only from your user ID, and only `YES <external-identifier>` for an open, unexpired ticket.
 

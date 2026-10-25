@@ -26,6 +26,19 @@ Build an iron condor agent that trades through tastytrade's official API, sandbo
 | Approval | Human yes before every live submit | No order leaves the box without it |
 | Runtime | AWS EC2, Python core on systemd timers; Claude Code interactive only | Same AWS setup as the Robinhood agents; a missed close never depends on Claude |
 
+## Status (2026-10-25)
+
+| Phase | Code | What's left |
+|---|---|---|
+| 0 Accounts and access | `auth.py` (refresh-token grant, SSM or env secrets, rotation) | Your accounts and OAuth app; run `cli status` against the sandbox; verify every endpoint path and field name in [architecture.md](architecture.md) |
+| 1 Data layer | `marketdata.py`, `scripts/update_universe.py`, `scripts/fetch_history.py` | Confirm `market-data/by-type` returns delta and open interest; if not, deltas come out `modeled` |
+| 2 Screen, strikes, sizing | `screen.py`, `structure.py`, tests | The 20-historical-date hand check |
+| 3 Order path in sandbox | `orders.py`, `risk.py`, `approval.py`, `broker.py`, `agent.py` | 10 sandbox round trips |
+| 4 Monitoring and journal | `monitor.py`, `journal.py`, `deploy/systemd/` | 5 trading days from timers |
+| 5 Live | Not started | Separate decision after Phase 4 exit |
+
+`TT_ENV=paper` runs phases 1–4 offline against a simulated market so the code path can be exercised before Phase 0 is done.
+
 ## Phases
 
 ### Phase 0 — Accounts and access (week 1)
@@ -84,7 +97,7 @@ Build an iron condor agent that trades through tastytrade's official API, sandbo
 ## Open questions
 
 - [ ] 30–35 DTE (matches the put agent) or 45 DTE (matches the tastylive research)? Default 30–45 window until decided.
-- [ ] Approval bot: Slack (Socket Mode) or Telegram?
+- [ ] Approval bot: Slack (Socket Mode) or Telegram? Telegram and a CLI channel are built; Slack would be added in `approval.py`.
 - [ ] Reuse the DITM EC2 instance or run a separate `t4g.small`? See [deploy.md](deploy.md).
 - [ ] Does tastytrade's market-metrics endpoint give reliable earnings and ex-dividend dates, or is a second source needed?
 - [ ] Does the account get the same spread-margin treatment in production as the dry-run shows in sandbox?

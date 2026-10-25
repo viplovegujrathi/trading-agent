@@ -1,0 +1,26 @@
+{
+  "_note": "Paper-mode fixture. Fictional tickers; every price derived from here is modeled. Dates like '+70d' are relative to today. Edit spot to move the market.",
+  "names": {
+    "ALFA": {"sector": "Health Care", "spot": 100.0, "iv": 0.48,
+             "history": {"pct_off_high": 22, "pct_below_50dma": 5},
+             "metrics": {"implied-volatility-index-rank": "0.46", "earnings": {"expected-report-date": "+75d"}, "dividend-yield": "0"}},
+    "BRVO": {"sector": "Consumer Staples", "spot": 62.0, "iv": 0.42,
+             "history": {"pct_off_high": 18, "pct_below_50dma": 4},
+             "metrics": {"implied-volatility-index-rank": "0.21", "earnings": {"expected-report-date": "+80d"}, "dividend-next-date": "+60d"}},
+    "CHRL": {"sector": "Information Technology", "spot": 140.0, "iv": 0.40,
+             "history": {"pct_off_high": 25, "pct_below_50dma": 6},
+             "metrics": {"implied-volatility-index-rank": "0.55", "earnings": {"expected-report-date": "+20d"}, "dividend-yield": "0"}},
+    "DLTA": {"sector": "Industrials", "spot": 210.0, "iv": 0.30,
+             "history": {"pct_off_high": 8, "pct_below_50dma": 4},
+             "metrics": {"implied-volatility-index-rank": "0.30", "earnings": {"expected-report-date": "+70d"}, "dividend-yield": "0"}},
+    "ECHO": {"sector": "Financials", "spot": 45.0, "iv": 0.50,
+             "history": {"pct_off_high": 35, "pct_below_50dma": 12},
+             "metrics": {"implied-volatility-index-rank": "0.70", "earnings": {"expected-report-date": "+70d"}, "dividend-yield": "0"}},
+    "FXTR": {"sector": "Energy", "spot": 88.0, "iv": 0.44,
+             "history": {"pct_off_high": 20, "pct_below_50dma": 5},
+             "metrics": {"implied-volatility-index-rank": "0.40", "earnings": {"expected-report-date": "+70d"}}},
+    "GOLF": {"sector": "Health Care", "spot": 75.0, "iv": 0.46,
+             "history": {"pct_off_high": 19, "pct_below_50dma": 4},
+             "metrics": {"implied-volatility-index-rank": "0.38", "earnings": {"expected-report-date": "+90d"}, "dividend-yield": "0"}}
+  }
+}

@@ -1,0 +1,6 @@
+requests>=2.31
+PyYAML>=6.0
+tzdata>=2024.1
+pytest>=8
+# boto3>=1.34   # needed on EC2 for SSM secrets, S3 backup and CloudWatch metrics
+-e .

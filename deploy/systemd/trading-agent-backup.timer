@@ -1,0 +1,10 @@
+[Unit]
+Description=Iron condor agent: S3 backup of journal/ and state/
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=false
+Unit=trading-agent@backup.service
+
+[Install]
+WantedBy=timers.target
