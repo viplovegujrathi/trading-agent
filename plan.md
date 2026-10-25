@@ -24,7 +24,7 @@ Build an iron condor agent that trades through tastytrade's official API, sandbo
 | Per-condor collateral cap | $1,000 | Max 4 open condors with a $1,000 buffer |
 | Order type | Limit, net credit, Day | Multi-leg market orders are a bad fill risk |
 | Approval | Human yes before every live submit | No order leaves the box without it |
-| Runtime | Claude Code on the existing box, cron-scheduled | Same box as the Robinhood agents |
+| Runtime | AWS EC2, Python core on systemd timers; Claude Code interactive only | Same AWS setup as the Robinhood agents; a missed close never depends on Claude |
 
 ## Phases
 
@@ -32,7 +32,7 @@ Build an iron condor agent that trades through tastytrade's official API, sandbo
 
 - Open and fund a tastytrade margin account; request options level that covers spreads.
 - Create a sandbox account and an OAuth app in the developer portal.
-- Store the refresh token in `.env` (never committed).
+- Store the refresh token in SSM Parameter Store (see [deploy.md](deploy.md)), never in git.
 - **Exit:** a script fetches the sandbox account balance and an option chain with a fresh access token.
 
 ### Phase 1 — Data layer (week 1–2)
@@ -84,7 +84,8 @@ Build an iron condor agent that trades through tastytrade's official API, sandbo
 ## Open questions
 
 - [ ] 30–35 DTE (matches the put agent) or 45 DTE (matches the tastylive research)? Default 30–45 window until decided.
-- [ ] Which approval channel: phone push, Slack, or email reply?
+- [ ] Approval bot: Slack (Socket Mode) or Telegram?
+- [ ] Reuse the DITM EC2 instance or run a separate `t4g.small`? See [deploy.md](deploy.md).
 - [ ] Does tastytrade's market-metrics endpoint give reliable earnings and ex-dividend dates, or is a second source needed?
 - [ ] Does the account get the same spread-margin treatment in production as the dry-run shows in sandbox?
 

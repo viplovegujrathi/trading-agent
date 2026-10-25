@@ -22,20 +22,20 @@
 
   <!-- Scheduler -->
   <rect x="30" y="90" width="170" height="60" rx="8" class="box"/>
-  <text x="115" y="116" text-anchor="middle" class="t">Scheduler (cron)</text>
+  <text x="115" y="116" text-anchor="middle" class="t">systemd timers</text>
   <text x="115" y="134" text-anchor="middle" class="s">9:45 · 12:30 · 15:15 ET</text>
 
   <!-- Orchestrator -->
-  <rect x="250" y="80" width="560" height="80" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
-  <text x="530" y="110" text-anchor="middle" class="t">Claude Code + iron-condor-tastytrade skill</text>
-  <text x="530" y="130" text-anchor="middle" class="s">runs the workflow · explains candidates · drafts tickets and summaries</text>
-  <text x="530" y="147" text-anchor="middle" class="s">cannot compute limits or bypass gates</text>
-  <path d="M200,120 L248,120" class="line" marker-end="url(#a)"/>
-  <path d="M530,160 L530,188" class="line" marker-end="url(#a)"/>
+  <rect x="250" y="80" width="560" height="80" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="530" y="110" text-anchor="middle" class="t">Claude Code + skill (interactive, not in order path)</text>
+  <text x="530" y="130" text-anchor="middle" class="s">explains candidates · reviews journal · summaries · code changes</text>
+  <text x="530" y="147" text-anchor="middle" class="s">calls the same CLI · cannot compute limits or bypass gates</text>
+  <path d="M200,140 L225,140 L225,214 L248,214" class="line" marker-end="url(#a)"/>
+  <path d="M530,160 L530,188" class="dash" marker-end="url(#a)"/>
 
   <!-- Core container -->
   <rect x="250" y="190" width="560" height="490" rx="10" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 5"/>
-  <text x="262" y="208" class="h">PYTHON CORE · DETERMINISTIC</text>
+  <text x="262" y="208" class="h">AWS EC2 · PYTHON CORE · DETERMINISTIC</text>
 
   <!-- Middle pipeline -->
   <rect x="440" y="220" width="180" height="48" rx="7" class="box"/>
@@ -76,7 +76,7 @@
   <!-- Left column -->
   <rect x="270" y="220" width="150" height="48" rx="7" class="box"/>
   <text x="345" y="240" text-anchor="middle" class="t">Auth client</text>
-  <text x="345" y="256" text-anchor="middle" class="s">OAuth2 · 15-min tokens</text>
+  <text x="345" y="256" text-anchor="middle" class="s">SSM · 15-min tokens</text>
 
   <rect x="270" y="350" width="150" height="48" rx="7" class="gate"/>
   <text x="345" y="370" text-anchor="middle" class="t">Kill switch</text>
@@ -109,7 +109,7 @@
   <!-- You -->
   <rect x="30" y="535" width="170" height="64" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="1.8"/>
   <text x="115" y="561" text-anchor="middle" class="t">You</text>
-  <text x="115" y="579" text-anchor="middle" class="s">push · Slack · email</text>
+  <text x="115" y="579" text-anchor="middle" class="s">Slack / Telegram bot</text>
   <path d="M438,569 L202,569" class="line" marker-start="url(#a)" marker-end="url(#a)"/>
   <text x="320" y="561" text-anchor="middle" class="l">ticket → / ← YES ext-id</text>
 
@@ -133,6 +133,12 @@
   <path d="M622,630 L848,630" class="line" marker-start="url(#a)" marker-end="url(#a)"/>
   <path d="M270,244 L240,244 L240,700 L960,700 L960,682" class="dash"/>
   <text x="600" y="714" text-anchor="middle" class="l">auth client supplies the bearer token for every tastytrade call</text>
+  <rect x="30" y="370" width="170" height="140" rx="8" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+  <text x="115" y="394" text-anchor="middle" class="t">AWS services</text>
+  <text x="44" y="418" class="l">SSM Parameter Store</text><text x="44" y="432" class="s">  secrets, KMS-encrypted</text>
+  <text x="44" y="452" class="l">S3 (versioned)</text><text x="44" y="466" class="s">  journal + state backup</text>
+  <text x="44" y="486" class="l">CloudWatch + SNS</text><text x="44" y="500" class="s">  heartbeat, errors, alerts</text>
+  <path d="M200,440 L238,440" class="dash" marker-end="url(#a)"/>
 
   <!-- Legend -->
   <rect x="30" y="250" width="12" height="12" class="gate"/><text x="48" y="260" class="s">gate (can block)</text>

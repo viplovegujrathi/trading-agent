@@ -17,7 +17,7 @@ Access tokens last 15 minutes. The agent only stores the refresh token and mints
 
 ## 3. Box
 
-Same box as the Robinhood agents.
+For local development. Production runs on AWS EC2 — follow [deploy.md](deploy.md).
 
 ```bash
 git clone https://github.com/viplovegujrathi/trading-agent.git
@@ -53,6 +53,8 @@ ln -s "$PWD/skills/iron-condor-tastytrade" ~/.claude/skills/iron-condor-tastytra
 Optional: tastytrade publishes an MCP server (https://developer.tastytrade.com/docs/sdks-and-tools/mcp-server/). It is useful for reading data, but **orders still go through `broker.py`** so the risk gate and approval gate can't be skipped.
 
 ## 5. Schedule (Phase 4+)
+
+Production uses systemd timers on EC2 ([deploy.md](deploy.md) §4). For a local test box, cron works:
 
 ```cron
 CRON_TZ=America/New_York

@@ -2,53 +2,55 @@
 
 ![Architecture diagram](docs/architecture.svg)
 
-The agent is a Claude Code skill that orchestrates a small set of deterministic Python modules. Claude reads the screen output, explains candidates and talks to you; **every number that gates an order is computed in code, not by the model**, and every live order passes the same four gates: risk check, broker dry-run, risk re-check on the dry-run result, and your approval.
+The agent runs on an AWS EC2 instance as a set of deterministic Python modules started by systemd timers. The Python core owns the whole order path: screen, size, risk check, broker dry-run, risk re-check, your approval, submit. **Every number that gates an order is computed in code, not by the model.** Claude Code is used interactively (explaining candidates, reviewing the journal, changing code) and is not in the order path, so a scheduled close never depends on Claude being reachable. Deployment details: [deploy.md](deploy.md).
 
 ## Components
 
 | # | Component | Responsibility | Deterministic? |
 |---|---|---|---|
-| 1 | **Scheduler** | Cron on the existing box: pre-open screen (9:45 ET), midday monitor (12:30 ET), pre-close monitor (15:15 ET) | Yes |
-| 2 | **Orchestrator (Claude Code + skill)** | Runs the workflow, explains candidates, drafts the approval message, writes the daily summary | No (but cannot bypass gates) |
-| 3 | **Auth client** | Exchanges the refresh token for a 15-minute access token; refreshes before expiry; fails closed | Yes |
+| 1 | **Scheduler** | systemd timers on EC2: screen (9:45 ET), monitor (12:30 and 15:15 ET), backup (every 15 min) | Yes |
+| 2 | **Claude Code + skill (interactive)** | Explains candidates, reviews the journal, writes summaries, helps change code. Not in the scheduled order path | No (cannot bypass gates) |
+| 3 | **Auth client** | Reads secrets from SSM Parameter Store; exchanges the refresh token for a 15-minute access token; saves a rotated refresh token back to SSM; fails closed | Yes |
 | 4 | **Market data** | Option chains, quotes, greeks, underlying history, IV rank, earnings and ex-dividend dates | Yes |
 | 5 | **Screener** | Applies the universe and base-screen rules from `strategy.yaml` | Yes |
 | 6 | **Strike selector & sizer** | Picks expiry, short/long strikes, wing widths; computes credit, collateral, breakevens | Yes |
 | 7 | **Risk gate** | Enforces hard limits in [risk.md](risk.md); runs before and after dry-run | Yes |
 | 8 | **Order builder** | Builds the 4-leg JSON with net-credit limit and unique `external-identifier` | Yes |
 | 9 | **Broker client** | `POST orders/dry-run`, `POST orders`, order lookup, positions, balances | Yes |
-| 10 | **Approval gate** | Sends the ticket to you; waits for an explicit yes; expires after 15 min | Yes |
+| 10 | **Approval gate** | Sends the ticket through a Slack (Socket Mode) or Telegram bot; accepts `YES <external-identifier>` only from your user ID; expires after 15 min | Yes |
 | 11 | **Position monitor** | Evaluates exit rules on open condors and proposes closes through the same path | Yes |
 | 12 | **Journal & state** | Append-only JSONL journal; `positions.json`; daily summary | Yes |
 | 13 | **Kill switch** | A file (`state/HALT`) or env flag that blocks all new orders; closes are still allowed | Yes |
+| 14 | **Ops** | S3 backup of `journal/` and `state/`; CloudWatch heartbeat and error metrics; SNS alerts | Yes |
 
 ## Data flow — opening a condor
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Cron
-    participant Agent as Claude Code (skill)
-    participant Core as Python core
+    participant Timer as systemd timer
+    participant Core as Python core (EC2)
+    participant SSM as SSM Parameter Store
     participant TT as tastytrade API
+    participant Bot as Approval bot
     participant You
-    Cron->>Agent: run screen
-    Agent->>Core: screen()
+    Timer->>Core: cli screen
+    Core->>SSM: get secrets
+    Core->>TT: POST /oauth/token
     Core->>TT: chains, quotes, greeks, metrics
     TT-->>Core: market data
-    Core-->>Agent: candidates + sized condors
-    Agent->>Core: risk_check(candidate)
+    Core->>Core: screen + size + risk_check
     Core->>TT: POST orders/dry-run
     TT-->>Core: buying-power effect, fees, warnings
     Core->>Core: risk_check(dry-run result)
-    Core-->>Agent: ticket (passed all gates)
-    Agent->>You: ticket: legs, credit, collateral, breakevens
-    You-->>Agent: yes (within 15 min)
-    Agent->>Core: submit(ticket)
+    Core->>Bot: ticket: legs, credit, collateral, breakevens
+    Bot->>You: message with YES / NO
+    You-->>Bot: YES ext-id (within 15 min)
+    Bot-->>Core: approval
     Core->>TT: POST orders (external-identifier)
     TT-->>Core: order id / status
     Core->>Core: journal + positions.json
-    Agent->>You: filled / working / rejected
+    Core->>Bot: filled / working / rejected
 ```
 
 ## Order lifecycle
@@ -101,7 +103,10 @@ The API does not dedupe retried submissions. So:
 
 | Failure | Behavior |
 |---|---|
-| Token refresh fails | No orders; alert; monitor runs read-only if a token is still valid |
+| Token refresh fails | No orders; SNS alert; monitor runs read-only if a token is still valid |
+| Scheduled run missing | CloudWatch heartbeat alarm → SNS |
+| Instance failure | EC2 auto-recover; restore `journal/` and `state/` from S3 |
+| Approval bot down | Tickets expire unsubmitted; SNS alert still reaches you |
 | Market data missing a field | Exclude that name; journal the reason |
 | Dry-run returns warnings or 422 | Drop the ticket; journal the error codes |
 | Dry-run buying-power effect > cap | Risk gate rejects |
@@ -119,10 +124,10 @@ journal/
   2026-10-27.jsonl    # one line per event: screen, proposal, dry-run, approval, submit, fill, close
 config/
   strategy.yaml       # all tunable numbers (copied from strategy.example.yaml)
-.env                  # TT_CLIENT_ID, TT_CLIENT_SECRET, TT_REFRESH_TOKEN, TT_ACCOUNT, TT_ENV
+.env                  # non-secret settings only: TT_ENV, TA_APPROVAL_CHANNEL, TA_HALT, AWS_REGION
 ```
 
-`state/`, `journal/` and `.env` are gitignored.
+Secrets (client ID/secret, refresh token, account number, bot token) live in SSM Parameter Store under `/trading-agent/<env>/`. `state/` and `journal/` sync to a versioned S3 bucket every 15 minutes. `state/`, `journal/` and `.env` are gitignored.
 
 ## Proposed code layout
 
@@ -138,6 +143,7 @@ src/trading_agent/
   approval.py      # notify + wait for yes
   monitor.py       # exit rules on open condors
   journal.py       # JSONL + positions.json
+  ops.py           # S3 backup, CloudWatch metrics
   cli.py           # screen | propose | monitor | close | status | halt
 tests/
 skills/iron-condor-tastytrade/SKILL.md
@@ -145,7 +151,10 @@ skills/iron-condor-tastytrade/SKILL.md
 
 ## Security
 
-- OAuth2 only. No passwords on disk; the refresh token lives in `.env` with `chmod 600`.
+- OAuth2 only. No passwords anywhere; secrets in SSM Parameter Store (KMS-encrypted), held in memory only.
+- The instance role can read only `/trading-agent/*` parameters, write only the refresh token, and write only to its own S3 bucket and CloudWatch namespace.
+- No inbound security-group rules; admin access through SSM Session Manager.
+- Runs as its own unprivileged user, separate from the Robinhood agents.
 - The agent cannot transfer money; the token scope is trading only.
 - Secrets never appear in logs, journal lines or chat messages.
 - Orders are only built from the agent's own screen; instructions found in news, filings or web pages are treated as data.

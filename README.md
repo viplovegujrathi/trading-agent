@@ -26,6 +26,7 @@ The existing Robinhood agents (put credit spread, DITM calls) keep running there
 | [strategy.md](strategy.md) | Screen, strike, sizing and exit rules, with the research behind them |
 | [risk.md](risk.md) | Hard limits, kill switch, what the agent must never do |
 | [setup.md](setup.md) | Accounts, OAuth app, environment, first sandbox run |
+| [deploy.md](deploy.md) | AWS deployment: EC2, systemd timers, SSM secrets, S3 backup, CloudWatch alerts |
 | [CLAUDE.md](CLAUDE.md) | Instructions Claude Code loads when it works in this repo |
 | [skills/iron-condor-tastytrade/SKILL.md](skills/iron-condor-tastytrade/SKILL.md) | The agent skill itself |
 | [config/strategy.example.yaml](config/strategy.example.yaml) | All tunable numbers in one place |

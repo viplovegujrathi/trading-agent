@@ -5,7 +5,7 @@ description: Screen beaten-down S&P 500 names for iron condors (put side at supp
 
 # Iron Condor Agent (tastytrade)
 
-Run from the `trading-agent` repo. Rules live in `strategy.md`, limits in `risk.md`, numbers in `config/strategy.yaml`. If they disagree with this file, `config/strategy.yaml` and `risk.md` win.
+Run from the `trading-agent` repo. In production the Python core runs on its own from systemd timers on EC2 and sends approvals through the bot; use this skill for interactive runs, explanations and journal review. It calls the same CLI, so the same gates apply. Rules live in `strategy.md`, limits in `risk.md`, numbers in `config/strategy.yaml`. If they disagree with this file, `config/strategy.yaml` and `risk.md` win.
 
 ## Before anything
 
